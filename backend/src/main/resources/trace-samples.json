@@ -34,9 +34,9 @@
             "subject": {
               "reference": "Patient/demo-patient"
             },
-            "effectiveDateTime": "2026-09-11T07:30:00Z",
+            "effectiveDateTime": "${today}",
             "valueQuantity": {
-              "value": 61,
+              "value": 58,
               "unit": "/min",
               "system": "http://unitsofmeasure.org",
               "code": "/min"
@@ -73,7 +73,7 @@
           }
         ]
       },
-      "effectiveDateTime": "2026-09-12T06:15:00Z",
+      "effectiveDateTime": "${yesterday}",
       "valueQuantity": {
         "value": 63,
         "unit": "bpm"
@@ -107,7 +107,7 @@
           }
         ]
       },
-      "effectiveDateTime": "2026-09-12T09:00:00Z",
+      "effectiveDateTime": "${today}",
       "valueQuantity": {
         "value": 88,
         "unit": "/min",

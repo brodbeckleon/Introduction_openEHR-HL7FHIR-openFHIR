@@ -6,6 +6,8 @@ import com.example.heartrate.trace.TraceService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -49,13 +51,21 @@ public class TraceController {
     /**
      * Ready-made inputs, each chosen to show one thing the standards do.
      *
-     * <p>The file holds message keys rather than text; they are resolved here so the samples arrive
-     * in the same language as everything else.
+     * <p>The file holds message keys rather than text, and {@code ${today}} rather than a date. Both
+     * are resolved here: the text so the samples arrive in the same language as everything else, the
+     * dates so a sample is never about a day three months ago. A reading dated today also lands on
+     * the same day as one typed into the entry form, which is what lets the tour follow one number
+     * from the form into the pipeline.
      */
     @GetMapping("/samples")
     public JsonNode samples() throws Exception {
-        var samples = objectMapper.readTree(
-                new ClassPathResource("trace-samples.json").getContentAsString(StandardCharsets.UTF_8));
+        var today = LocalDate.now(ZoneOffset.UTC);
+        var text = new ClassPathResource("trace-samples.json")
+                .getContentAsString(StandardCharsets.UTF_8)
+                .replace("${today}", midnightUtc(today))
+                .replace("${yesterday}", midnightUtc(today.minusDays(1)));
+
+        var samples = objectMapper.readTree(text);
         for (JsonNode sample : samples) {
             var object = (com.fasterxml.jackson.databind.node.ObjectNode) sample;
             object.put("label", messages.get(object.path("labelKey").asText()));
@@ -64,5 +74,10 @@ public class TraceController {
             object.remove("summaryKey");
         }
         return samples;
+    }
+
+    /** Midnight UTC: a resting heart rate is a whole day's value, not a moment in one. */
+    private static String midnightUtc(LocalDate day) {
+        return day.atStartOfDay().toInstant(ZoneOffset.UTC).toString();
     }
 }

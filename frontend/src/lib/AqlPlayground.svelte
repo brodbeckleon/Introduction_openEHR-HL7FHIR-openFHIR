@@ -44,9 +44,13 @@
     }
   }
 
-  /** Ctrl/Cmd+Enter runs it, because that is what every query console does. */
+  /**
+   * Ctrl/Cmd+Enter runs it, because that is what every query console does — and from anywhere on
+   * the tab, not only from inside the textarea. Having to click into the field first to use the
+   * shortcut defeats the point of having one.
+   */
   function onKeydown(event: KeyboardEvent): void {
-    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter' && !running) {
       event.preventDefault();
       void run();
     }
@@ -61,6 +65,8 @@
 
   const isNull = (value: unknown): boolean => value === null || value === undefined;
 </script>
+
+<svelte:window onkeydown={onKeydown} />
 
 <section class="playground">
   <header>
@@ -89,7 +95,6 @@
 
   <textarea
     bind:value={query}
-    onkeydown={onKeydown}
     spellcheck="false"
     autocomplete="off"
     aria-label={t('aql.queryLabel')}></textarea>

@@ -16,8 +16,25 @@
   const isSelected = (rule: MappingRule): boolean =>
     selected !== null && selected.file === rule.file && selected.fromLine === rule.fromLine;
 
-  /** Nesting is meaningful — a nested rule only applies inside its parent — so it is kept visible. */
-  const indentOf = (rule: MappingRule): number => Math.min(rule.depth, 4) * 14;
+  /**
+   * Nesting is meaningful — a nested rule only applies inside its parent — so it stays visible.
+   *
+   * The depth reported is the YAML indentation, which jumps (1, 4, 7) because a nested rule sits
+   * under `followedBy: mappings:`. Ranking the distinct depths within each file turns that into
+   * steps of one, so two rules that look equally indented really are siblings.
+   */
+  const ranks = $derived.by<Record<string, number[]>>(() => {
+    const byFile: Record<string, number[]> = {};
+    for (const rule of rules) {
+      const depths = (byFile[rule.file] ??= []);
+      if (!depths.includes(rule.depth)) depths.push(rule.depth);
+    }
+    Object.values(byFile).forEach((depths) => depths.sort((a, b) => a - b));
+    return byFile;
+  });
+
+  const indentOf = (rule: MappingRule): number =>
+    Math.max(0, ranks[rule.file]?.indexOf(rule.depth) ?? 0) * 18;
 </script>
 
 <section class="rules">
@@ -26,13 +43,14 @@
 
   <ul>
     {#each rules as rule (rule.file + rule.fromLine)}
-      <li>
+      <!-- The indent belongs to the row, not the button: a width:100% button with a left margin
+           overflows its container by exactly that margin. -->
+      <li style="padding-left: {indentOf(rule)}px">
         <button
           type="button"
           class="rule"
           class:active={isSelected(rule)}
           data-kind={rule.kind}
-          style="margin-left: {indentOf(rule)}px"
           onclick={() => onselect(rule)}
         >
           <span class="name">{rule.name}</span>
@@ -85,6 +103,7 @@
 
   .rule {
     width: 100%;
+    box-sizing: border-box;
     display: flex;
     align-items: baseline;
     flex-wrap: wrap;
