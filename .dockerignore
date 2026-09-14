@@ -1,0 +1,11 @@
+# The backend image builds from the repository root, so everything here would otherwise be sent to
+# the daemon on every build — including a node_modules directory and the whole git history.
+.git
+.idea
+docs
+
+backend/.gradle
+backend/build
+
+frontend/node_modules
+frontend/dist

@@ -1,0 +1,41 @@
+grammar: FHIRConnect/v0.0.1
+type: model
+metadata:
+  name: "openEHR-EHR-COMPOSITION.encounter.v1"
+  version: 0.0.2a
+spec:
+  system: FHIR
+  version: R4
+  openEhrConfig:
+    archetype: "openEHR-EHR-COMPOSITION.encounter.v1"
+  fhirConfig:
+    structureDefinition: http://hl7.org/fhir/StructureDefinition/Bundle
+
+mappings:
+
+  # One day's statistics arrive as one Bundle; each entry is routed to the right event
+  # by pulse.model.yaml, which keys off the Observation's code.
+  - name: "pulseParent"
+    with:
+      fhir: "$resource.entry"
+      openehr: "$composition/content[openEHR-EHR-OBSERVATION.pulse.v2]/data[at0002]/events[at0003]"
+    fhirCondition:
+      targetRoot: "$resource.entry"
+      targetAttribute: "resource"
+      operator: "type"
+      criterias:
+        - "Observation"
+    followedBy:
+      mappings:
+        - name: "iteratePulse"
+          with:
+            fhir: "resource"
+            openehr: "$reference"
+          reference:
+            resourceType: "Observation"
+            mappings:
+              - name: "pulseSlot"
+                with:
+                  fhir: "$fhirRoot"
+                  openehr: "$composition/content[openEHR-EHR-OBSERVATION.pulse.v2]"
+                slotArchetype: "OBSERVATION.pulse.v2"

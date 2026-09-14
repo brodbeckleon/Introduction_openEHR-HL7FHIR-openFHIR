@@ -1,0 +1,33 @@
+server:
+  port: 18080
+
+spring:
+  application:
+    name: heartrate-monitor
+  messages:
+    basename: messages
+    encoding: UTF-8
+    # Fall back to messages.properties (English) rather than the server's own locale.
+    fallback-to-system-locale: false
+  jackson:
+    default-property-inclusion: non_null
+
+heartrate:
+  template-id: heartrate_monitor.v1
+  # Fixed EHR so the demo keeps reading the same record across restarts.
+  ehr-id: 7f8b1c2d-4e5a-4b6c-8d9e-0a1b2c3d4e5f
+  patient-id: demo-patient
+  composer-name: Heart rate monitor
+  territory: CH
+  # Relative to the working directory of `./gradlew bootRun`, i.e. backend/.
+  mappings-dir: ../openfhir-bootstrap
+  ehrbase:
+    base-url: http://localhost:18081/ehrbase
+    username: ehrbase-user
+    password: SuperSecretPassword
+  openfhir:
+    base-url: http://localhost:18082
+
+logging:
+  level:
+    com.example.heartrate: INFO

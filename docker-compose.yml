@@ -1,0 +1,134 @@
+# Everything the heart rate monitor demo needs.
+#
+#   ehrbase   -> openEHR CDR (persistence)          http://localhost:18081/ehrbase
+#   openfhir  -> FHIR <-> openEHR mapping engine    http://localhost:18082
+#   backend   -> Spring Boot service                http://localhost:18080
+#   frontend  -> Svelte dev server                  http://localhost:5173
+#
+# `docker compose up -d` starts all of it. For backend development run
+# `docker compose stop backend` and use `cd backend && ./gradlew bootRun` instead —
+# port 18080 is then served by the host process and nothing else has to change.
+services:
+  ehrdb:
+    image: ehrbase/ehrbase-v2-postgres:16.2
+    container_name: hrm-ehrdb
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      EHRBASE_USER_ADMIN: ehrbase
+      EHRBASE_PASSWORD_ADMIN: ehrbase
+      EHRBASE_USER: ehrbase_restricted
+      EHRBASE_PASSWORD: ehrbase_restricted
+    volumes:
+      - ehrdb-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  ehrbase:
+    image: ehrbase/ehrbase:2.35.1
+    container_name: hrm-ehrbase
+    depends_on:
+      ehrdb:
+        condition: service_healthy
+    ports:
+      - "18081:8080"
+    environment:
+      DB_URL: jdbc:postgresql://ehrdb:5432/ehrbase
+      DB_USER_ADMIN: ehrbase
+      DB_PASS_ADMIN: ehrbase
+      DB_USER: ehrbase_restricted
+      DB_PASS: ehrbase_restricted
+      SECURITY_AUTHTYPE: BASIC
+      SECURITY_AUTHUSER: ehrbase-user
+      SECURITY_AUTHPASSWORD: SuperSecretPassword
+      SECURITY_AUTHADMINUSER: ehrbase-admin
+      SECURITY_AUTHADMINPASSWORD: EvenMoreSecretPassword
+      SERVER_NODENAME: heartrate.monitor.local
+    healthcheck:
+      # Readiness = the openEHR API answers. The image ships BusyBox wget, which only
+      # understands basic auth as an explicit header.
+      test: ["CMD-SHELL", "wget -q -O /dev/null --header='Authorization: Basic ZWhyYmFzZS11c2VyOlN1cGVyU2VjcmV0UGFzc3dvcmQ=' http://localhost:8080/ehrbase/rest/openehr/v1/definition/template/adl1.4"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+
+  mongodb:
+    image: mongo:7
+    container_name: hrm-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin
+      MONGO_INITDB_DATABASE: openfhir
+    volumes:
+      - mongo-data:/data/db
+      - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.adminCommand(\"ping\").ok' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  openfhir:
+    image: openfhir/openfhir:3.0.1
+    container_name: hrm-openfhir
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    ports:
+      - "18082:8080"
+    environment:
+      SPRING_DATA_MONGODB_URI: "mongodb://openfhir:openfhir@mongodb:27017/openfhir"
+      OPENFHIR_BOOTSTRAP_DIR: "/app/bootstrap/"
+    volumes:
+      # Operational template + FHIR Connect model/context mappings are picked up on boot.
+      - ./openfhir-bootstrap:/app/bootstrap:ro
+
+  backend:
+    build:
+      # The root, not backend/: the image needs openfhir-bootstrap/ as well.
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: hrm-backend
+    depends_on:
+      ehrbase:
+        condition: service_healthy
+      openfhir:
+        condition: service_started
+    ports:
+      - "18080:18080"
+    environment:
+      # Inside the compose network the two servers answer on their own names and default ports.
+      HEARTRATE_EHRBASE_BASEURL: "http://ehrbase:8080/ehrbase"
+      HEARTRATE_OPENFHIR_BASEURL: "http://openfhir:8080"
+      HEARTRATE_MAPPINGSDIR: "/app/bootstrap"
+    volumes:
+      # Writable, unlike openFHIR's copy of the same mount: the mapping editor saves here, and
+      # openFHIR re-reads the file on the next $bootstrap. Editing a mapping is the point of the
+      # editor, so the files it edits have to be the real ones.
+      - ./openfhir-bootstrap:/app/bootstrap
+
+  frontend:
+    build: ./frontend
+    container_name: hrm-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      # Deliberately the host, not the backend service: port 18080 is published either way, so this
+      # reaches the containerised backend and an on-the-host `./gradlew bootRun` without a change.
+      VITE_BACKEND_URL: "http://host.docker.internal:18080"
+    extra_hosts:
+      # host.docker.internal is automatic on Docker Desktop (Mac/Windows), but
+      # needs this to resolve on Linux.
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./frontend:/app
+      - frontend-node-modules:/app/node_modules
+
+volumes:
+  ehrdb-data:
+  mongo-data:
+  frontend-node-modules:

@@ -1,0 +1,18 @@
+grammar: FHIRConnect/v0.0.1
+type: context
+metadata:
+  name: "Heart rate monitor"
+  version: 0.0.1a
+spec:
+  system: FHIR
+  version: R4
+
+context:
+  profile:
+    url: "Bundle"
+  template:
+    id: "heartrate_monitor.v1"
+  archetypes:
+    - "openEHR-EHR-COMPOSITION.encounter.v1"
+    - "OBSERVATION.pulse.v2"
+  start: "openEHR-EHR-COMPOSITION.encounter.v1"

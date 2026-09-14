@@ -1,0 +1,208 @@
+<script lang="ts">
+  import { t } from './i18n.svelte';
+
+  /**
+   * The three standards, what each is for, and which way the data moves.
+   *
+   * The README says this in ASCII; a reading is faster than a paragraph, and in the pipeline
+   * inspector the box belonging to whoever is acting right now lights up, which turns the same
+   * picture into a position indicator.
+   */
+
+  interface Props {
+    /** Lights up one box — the system responsible for the stage being looked at. */
+    active?: 'fhir' | 'openfhir' | 'openehr' | null;
+    /** Trims the captions for use above the inspector, where the detail is on screen anyway. */
+    compact?: boolean;
+  }
+
+  const { active = null, compact = false }: Props = $props();
+
+  /** Captions are one string with | between the lines, so a translation can rebalance them. */
+  const caption = (key: string): string[] => t(key).split('|');
+</script>
+
+<figure class="diagram" class:compact>
+  <svg viewBox="0 0 900 {compact ? 152 : 232}" role="img" xmlns="http://www.w3.org/2000/svg">
+    <title>{t('diagram.alt')}</title>
+
+    <defs>
+      <marker
+        id="arrow-fhir"
+        viewBox="0 0 10 10"
+        refX="9"
+        refY="5"
+        markerWidth="6"
+        markerHeight="6"
+        orient="auto-start-reverse"
+      >
+        <path d="M 0 0 L 10 5 L 0 10 z" class="head-fhir" />
+      </marker>
+      <marker
+        id="arrow-openehr"
+        viewBox="0 0 10 10"
+        refX="9"
+        refY="5"
+        markerWidth="6"
+        markerHeight="6"
+        orient="auto-start-reverse"
+      >
+        <path d="M 0 0 L 10 5 L 0 10 z" class="head-openehr" />
+      </marker>
+    </defs>
+
+    <!-- Exchange -->
+    <g class="node fhir" class:lit={active === 'fhir'}>
+      <rect x="8" y="44" width="236" height="96" rx="10" />
+      <text class="name" x="28" y="76">HL7 FHIR</text>
+      <text class="role" x="28" y="98">{t('diagram.fhir.role')}</text>
+      <text class="artefact" x="28" y="122">Observation · LOINC 40443-4</text>
+    </g>
+
+    <!-- Translation -->
+    <g class="node openfhir" class:lit={active === 'openfhir'}>
+      <rect x="332" y="44" width="236" height="96" rx="10" />
+      <text class="name" x="352" y="76">openFHIR</text>
+      <text class="role" x="352" y="98">{t('diagram.openfhir.role')}</text>
+      <text class="artefact" x="352" y="122">FHIR Connect mappings</text>
+    </g>
+
+    <!-- Persistence -->
+    <g class="node openehr" class:lit={active === 'openehr'}>
+      <rect x="656" y="44" width="236" height="96" rx="10" />
+      <text class="name" x="676" y="76">openEHR</text>
+      <text class="role" x="676" y="98">{t('diagram.openehr.role')}</text>
+      <text class="artefact" x="676" y="122">COMPOSITION · pulse.v2</text>
+    </g>
+
+    <!-- Left gap: FHIR travels in and out -->
+    <line class="flow fhir-flow" x1="248" y1="74" x2="324" y2="74" marker-end="url(#arrow-fhir)" />
+    <line
+      class="flow fhir-flow"
+      x1="324"
+      y1="112"
+      x2="248"
+      y2="112"
+      marker-end="url(#arrow-fhir)"
+    />
+    <text class="edge" x="286" y="64" text-anchor="middle">{t('diagram.import')}</text>
+    <text class="edge" x="286" y="132" text-anchor="middle">{t('diagram.export')}</text>
+
+    <!-- Right gap: openEHR goes to the record and comes back -->
+    <line
+      class="flow openehr-flow"
+      x1="572"
+      y1="74"
+      x2="648"
+      y2="74"
+      marker-end="url(#arrow-openehr)"
+    />
+    <line
+      class="flow openehr-flow"
+      x1="648"
+      y1="112"
+      x2="572"
+      y2="112"
+      marker-end="url(#arrow-openehr)"
+    />
+    <text class="edge" x="610" y="64" text-anchor="middle">{t('diagram.store')}</text>
+    <text class="edge" x="610" y="132" text-anchor="middle">AQL</text>
+
+    {#if !compact}
+      <!-- What each one is actually good at. This is the part people come away with. -->
+      {#each [['diagram.fhir.caption', 8], ['diagram.openfhir.caption', 332], ['diagram.openehr.caption', 656]] as [key, x] (key)}
+        {#each caption(key as string) as line, row (row)}
+          <text class="caption" {x} y={176 + row * 20}>{line}</text>
+        {/each}
+      {/each}
+    {/if}
+  </svg>
+</figure>
+
+<style>
+  .diagram {
+    margin: 0;
+  }
+
+  svg {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .node rect {
+    fill: var(--surface-1);
+    stroke: var(--border);
+    stroke-width: 1;
+  }
+
+  /* The same two colours the JSON panels use: blue is FHIR, orange is openEHR. */
+  .node.fhir rect {
+    stroke: var(--series-resting);
+  }
+
+  .node.openehr rect {
+    stroke: var(--series-reading);
+  }
+
+  .node.lit rect {
+    fill: var(--band-fill);
+  }
+
+  .name {
+    font-size: 19px;
+    font-weight: 600;
+    fill: var(--text-primary);
+  }
+
+  .node.fhir .name {
+    fill: var(--series-resting);
+  }
+
+  .node.openehr .name {
+    fill: var(--series-reading);
+  }
+
+  .role {
+    font-size: 13px;
+    fill: var(--text-secondary);
+  }
+
+  .artefact {
+    font-size: 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    fill: var(--text-muted);
+  }
+
+  .flow {
+    stroke-width: 1.5;
+    fill: none;
+  }
+
+  .fhir-flow {
+    stroke: var(--series-resting);
+  }
+
+  .openehr-flow {
+    stroke: var(--series-reading);
+  }
+
+  .head-fhir {
+    fill: var(--series-resting);
+  }
+
+  .head-openehr {
+    fill: var(--series-reading);
+  }
+
+  .edge {
+    font-size: 11.5px;
+    fill: var(--text-muted);
+    letter-spacing: 0.03em;
+  }
+
+  .caption {
+    font-size: 12.5px;
+    fill: var(--text-secondary);
+  }
+</style>

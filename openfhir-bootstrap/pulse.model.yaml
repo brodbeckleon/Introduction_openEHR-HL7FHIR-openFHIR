@@ -1,0 +1,59 @@
+grammar: FHIRConnect/v0.0.1
+type: model
+metadata:
+  name: "OBSERVATION.pulse.v2"
+  version: 0.0.2a
+spec:
+  system: FHIR
+  version: R4
+  openEhrConfig:
+    archetype: "openEHR-EHR-OBSERVATION.pulse.v2"
+  fhirConfig:
+    structureDefinition: http://hl7.org/fhir/StructureDefinition/Observation
+
+# Every composition holds exactly one resting heart rate: the day's value, as a POINT_EVENT.
+preprocessor:
+  fhirConditions:
+    - targetRoot: "$resource"
+      targetAttribute: "code.coding.code"
+      operator: "one of"
+      criteria: "40443-4"
+    - targetRoot: "$resource"
+      targetAttribute: "status"
+      operator: "one of"
+      criteria: "final"
+    - targetRoot: "$resource"
+      targetAttribute: "category.coding.code"
+      operator: "one of"
+      criteria: "vital-signs"
+
+mappings:
+
+  - name: "rate"
+    with:
+      fhir: "$resource.value"
+      openehr: "$archetype/data[at0002]/events[at0003]/data[at0001]/items[at0004]"
+
+  - name: "time"
+    with:
+      fhir: "$resource.effective"
+      openehr: "$archetype/data[at0002]/events[at0003]/time"
+
+  - name: "hardcodedMappings"
+    with:
+      fhir: "$resource"
+      openehr: "$archetype"
+    manual:
+      - name: "code"
+        fhir:
+          # LOINC 40443-4 "Heart rate --resting" — the standard code for this value.
+          - path: "code.coding.code"
+            value: "40443-4"
+      - name: "status"
+        fhir:
+          - path: "status"
+            value: "final"
+      - name: "category"
+        fhir:
+          - path: "category.coding.code"
+            value: "vital-signs"
