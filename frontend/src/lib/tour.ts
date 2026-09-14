@@ -33,7 +33,12 @@ export const TOUR: TourStep[] = [
   { tab: 'pipeline', key: 'tour.openehr', stage: 'composition', focus: '.panels' },
   { tab: 'pipeline', key: 'tour.lost', stage: 'roundtrip', focus: '.differences' },
   { tab: 'mappings', key: 'tour.translate', focus: '.mapping' },
+  // After the mappings, never before: the point of the template is the contrast with them, and
+  // that only lands once the reader knows what a mapping is.
+  { tab: 'template', key: 'tour.template', focus: '.summary' },
   { tab: 'overview', key: 'tour.versions', focus: '.manual' },
+  // Straight after versioning: this is where the PUT that step just described is visible.
+  { tab: 'traffic', key: 'tour.traffic', focus: '.calls' },
   { tab: 'aql', key: 'tour.query', focus: '.examples' },
   { tab: 'overview', key: 'tour.done' },
 ];

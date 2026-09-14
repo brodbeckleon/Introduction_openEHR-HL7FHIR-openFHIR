@@ -70,9 +70,15 @@ const EN: Dictionary = {
   'tour.translate.title': 'So something has to translate',
   'tour.translate.body':
     'That is openFHIR, and this is how it knows what to do: declarative rules saying which FHIR path corresponds to which openEHR path, and under what conditions. Not Java. Changing how the two models correspond means editing this YAML — and you can, right here, including breaking it on purpose to see what the rules were doing.',
+  'tour.template.title': 'What the model allows, and what is used',
+  'tour.template.body':
+    'The third thing the mappings rest on: the operational template. EHRbase validates every composition against it, openFHIR resolves paths against it — and only ten of its twenty-three nodes are ever filled. Open the pulse observation and find the second event slot, an INTERVAL_EVENT named “Maximum” with a math_function: the model has room for the minimum, maximum and mean of a day, named and typed and ready. The mapping simply never writes it. The template says what is possible; the mappings decide what happens.',
   'tour.versions.title': 'The record does not forget',
   'tour.versions.body':
     'Correct a reading and openEHR does not overwrite it — there is no overwrite. It adds a version and keeps the one before. That is why a clinical record can still answer “what did it say on the day someone acted on it?”, which an ordinary database cannot. Try it: record a day twice and open its history.',
+  'tour.traffic.title': 'Watch it happen',
+  'tour.traffic.body':
+    'Every call this application made to the two standards servers, newest first. Open one and you see the openEHR REST API as it really is: a COMPOSITION going to POST /ehr/{id}/composition, answered with 204 and a version uid in an ETag. A correction you just made is the PUT a few rows up. None of this is a diagram of how it might work — it is what happened.',
   'tour.query.title': 'And it stays queryable',
   'tour.query.body':
     'AQL selects by archetype path, not by table column. The same query runs on any openEHR system that knows the archetype, and survives a restructuring of the database underneath. Run one — and try the example with a typo in the path, which is the failure mode worth meeting on purpose.',
@@ -334,9 +340,15 @@ const DE: Dictionary = {
   'tour.translate.title': 'Also muss jemand übersetzen',
   'tour.translate.body':
     'Das ist openFHIR, und so weiß es, was zu tun ist: deklarative Regeln, die sagen, welcher FHIR-Pfad welchem openEHR-Pfad entspricht und unter welchen Bedingungen. Kein Java. Die Entsprechung zu ändern heißt, dieses YAML zu bearbeiten — und das kannst du hier, inklusive absichtlich kaputtmachen, um zu sehen, was die Regeln eigentlich taten.',
+  'tour.template.title': 'Was das Modell erlaubt und was benutzt wird',
+  'tour.template.body':
+    'Das dritte, worauf die Mappings aufbauen: das operationale Template. EHRbase validiert jede Composition dagegen, openFHIR löst Pfade daran auf — und nur zehn seiner dreiundzwanzig Knoten werden je befüllt. Klapp die Puls-Observation auf und such den zweiten Ereignis-Slot, ein INTERVAL_EVENT namens „Maximum" mit einer math_function: Das Modell hat Platz für Minimum, Maximum und Mittelwert eines Tages, benannt, typisiert, fertig. Das Mapping schreibt ihn nur nie. Das Template sagt, was möglich ist; die Mappings entscheiden, was passiert.',
   'tour.versions.title': 'Die Akte vergisst nicht',
   'tour.versions.body':
     'Korrigiert man eine Messung, überschreibt openEHR sie nicht — es gibt kein Überschreiben. Es legt eine Version an und behält die davor. Deshalb kann eine klinische Akte weiterhin beantworten: „Was stand dort an dem Tag, an dem jemand danach gehandelt hat?" Eine gewöhnliche Datenbank kann das nicht. Probier es: denselben Tag zweimal erfassen und die Historie öffnen.',
+  'tour.traffic.title': 'Dabei zusehen',
+  'tour.traffic.body':
+    'Jeder Aufruf, den diese Anwendung an die beiden Standards-Server gemacht hat, neueste zuerst. Klapp einen auf, und du siehst die openEHR-REST-API, wie sie wirklich ist: eine COMPOSITION per POST an /ehr/{id}/composition, beantwortet mit 204 und einer Version-UID im ETag. Eine Korrektur, die du gerade gemacht hast, ist das PUT ein paar Zeilen weiter oben. Nichts davon ist ein Schaubild, wie es funktionieren könnte — es ist, was passiert ist.',
   'tour.query.title': 'Und sie bleibt abfragbar',
   'tour.query.body':
     'AQL selektiert über Archetyp-Pfade, nicht über Tabellenspalten. Dieselbe Abfrage läuft auf jedem openEHR-System, das den Archetyp kennt, und übersteht einen Umbau der Datenbank darunter. Führ eine aus — und probier das Beispiel mit dem Tippfehler im Pfad, das ist der Fehlermodus, den man lieber absichtlich kennenlernt.',

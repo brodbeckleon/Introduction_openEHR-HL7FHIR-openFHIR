@@ -57,7 +57,7 @@ The answer is a FHIR `OperationOutcome` saying what went in and what did not:
 
 Every other part of this application explains *how* the three standards work. None of them answers
 why one heart rate needs three standards at all — and that is the question someone meeting openEHR
-for the first time actually has. The tour is that answer, told as one argument in ten steps, using
+for the first time actually has. The tour is that answer, told as one argument in twelve steps, one per tab and then some, using
 the tabs as its stage:
 
 1. **What this is.** A heart rate monitor: one resting heart rate per day. That is the entire
@@ -72,9 +72,12 @@ the tabs as its stage:
 6. **Two models, not one in two formats** — what the round trip does not bring back, and why that is
    not a bug.
 7. **So something has to translate** — openFHIR, and the rules it follows.
-8. **The record does not forget** — correcting adds a version, it never overwrites.
-9. **And it stays queryable** — AQL by archetype path.
-10. **That is the whole idea.**
+8. **What the model allows, and what is used** — ten of the template's twenty-three nodes, and the
+   INTERVAL_EVENT slot the mapping never fills.
+9. **The record does not forget** — correcting adds a version, it never overwrites.
+10. **Watch it happen** — the calls to both servers, as they really were.
+11. **And it stays queryable** — AQL by archetype path.
+12. **That is the whole idea.**
 
 Each step switches to the tab it belongs on, selects the right pipeline stage where that matters, and
 rings the thing it is talking about — so "notice the LOINC code is gone" arrives with the JSON on
