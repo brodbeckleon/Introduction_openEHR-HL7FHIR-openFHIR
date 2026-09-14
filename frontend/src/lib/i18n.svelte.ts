@@ -49,9 +49,12 @@ const EN: Dictionary = {
   'tour.offer':
     'New to these three standards? The tour answers the question the rest of this app assumes you already have: why one heart rate needs three of them.',
 
+  'tour.what.title': 'What this is',
+  'tour.what.body':
+    'A heart rate monitor: one resting heart rate per day, thirty days of them, drawn as a line. That is the entire feature — and it is the excuse. Everything else here exists to show what it actually takes to store those numbers properly, which turns out to need three healthcare standards. That is what the rest of this tour is about.',
   'tour.number.title': 'One number: 58',
   'tour.number.body':
-    'A resting heart rate, measured on one day. Storing it is trivial — any database does that. Storing it so a different hospital, or the same one in twenty years, still knows what it means is the actual problem. That is what these three standards are for.',
+    'There it is, in the field below. A resting heart rate, measured on one day. Storing it is trivial — any database does that. Storing it so a different hospital, or the same one in twenty years, still knows what it means is the actual problem. That is what these three standards are for.',
   'tour.column.title': 'Why a database column is not enough',
   'tour.column.body':
     'A column `bpm INT` holds 58. It does not hold: in what unit, at rest or under exertion, measured by whom, with what device, in what care setting. A colleague ten years from now can read the number and still not know what it means — and in medicine that is not a small problem.',
@@ -310,9 +313,12 @@ const DE: Dictionary = {
   'tour.offer':
     'Zum ersten Mal mit diesen drei Standards zu tun? Die Tour beantwortet die Frage, die der Rest dieser App schon voraussetzt: warum ein einzelner Ruhepuls gleich drei davon braucht.',
 
+  'tour.what.title': 'Worum es sich handelt',
+  'tour.what.body':
+    'Ein Ruhepuls-Monitor: ein Ruhepuls pro Tag, dreißig Tage davon, als Linie gezeichnet. Das ist die ganze Funktion — und sie ist der Vorwand. Alles andere hier gibt es, um zu zeigen, was es wirklich braucht, um diese Zahlen ordentlich zu speichern. Und dafür braucht es drei Standards aus dem Gesundheitswesen. Darum geht es im Rest dieser Tour.',
   'tour.number.title': 'Eine Zahl: 58',
   'tour.number.body':
-    'Ein Ruhepuls, an einem Tag gemessen. Ihn zu speichern ist trivial — das kann jede Datenbank. Ihn so zu speichern, dass ein anderes Krankenhaus, oder dasselbe in zwanzig Jahren, noch weiß, was er bedeutet, ist das eigentliche Problem. Dafür sind diese drei Standards da.',
+    'Da steht sie, im Feld darunter. Ein Ruhepuls, an einem Tag gemessen. Ihn zu speichern ist trivial — das kann jede Datenbank. Ihn so zu speichern, dass ein anderes Krankenhaus, oder dasselbe in zwanzig Jahren, noch weiß, was er bedeutet, ist das eigentliche Problem. Dafür sind diese drei Standards da.',
   'tour.column.title': 'Warum eine Datenbankspalte nicht reicht',
   'tour.column.body':
     'Eine Spalte `bpm INT` enthält 58. Sie enthält nicht: in welcher Einheit, in Ruhe oder unter Belastung, von wem gemessen, mit welchem Gerät, in welchem Versorgungskontext. Ein Kollege kann die Zahl in zehn Jahren lesen und trotzdem nicht wissen, was sie bedeutet — und in der Medizin ist das kein kleines Problem.',

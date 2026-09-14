@@ -57,22 +57,24 @@ The answer is a FHIR `OperationOutcome` saying what went in and what did not:
 
 Every other part of this application explains *how* the three standards work. None of them answers
 why one heart rate needs three standards at all — and that is the question someone meeting openEHR
-for the first time actually has. The tour is that answer, told as one argument in nine steps, using
+for the first time actually has. The tour is that answer, told as one argument in ten steps, using
 the tabs as its stage:
 
-1. **One number: 58.** Storing it is trivial. Storing it so it survives twenty years and a change of
-   hospital is the real problem.
-2. **Why a database column is not enough.** `bpm INT` holds 58. It does not hold the unit, whether
+1. **What this is.** A heart rate monitor: one resting heart rate per day. That is the entire
+   feature, and it is the excuse.
+2. **One number: 58.** It is in the entry field on screen. Storing it is trivial; storing it so it
+   survives twenty years and a change of hospital is the real problem.
+3. **Why a database column is not enough.** `bpm INT` holds 58. It does not hold the unit, whether
    the patient was at rest, who measured it, or with what.
-3. **What FHIR contributes** — the number says what it is, in codes, so it can cross a boundary.
-4. **What openEHR does differently** — the LOINC code is gone; the meaning is now the *place*, an
+4. **What FHIR contributes** — the number says what it is, in codes, so it can cross a boundary.
+5. **What openEHR does differently** — the LOINC code is gone; the meaning is now the *place*, an
    internationally agreed archetype. And openEHR demands what FHIR never sent.
-5. **Two models, not one in two formats** — what the round trip does not bring back, and why that is
+6. **Two models, not one in two formats** — what the round trip does not bring back, and why that is
    not a bug.
-6. **So something has to translate** — openFHIR, and the rules it follows.
-7. **The record does not forget** — correcting adds a version, it never overwrites.
-8. **And it stays queryable** — AQL by archetype path.
-9. **That is the whole idea.**
+7. **So something has to translate** — openFHIR, and the rules it follows.
+8. **The record does not forget** — correcting adds a version, it never overwrites.
+9. **And it stays queryable** — AQL by archetype path.
+10. **That is the whole idea.**
 
 Each step switches to the tab it belongs on, selects the right pipeline stage where that matters, and
 rings the thing it is talking about — so "notice the LOINC code is gone" arrives with the JSON on

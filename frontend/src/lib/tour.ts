@@ -24,7 +24,10 @@ export interface TourStep {
 }
 
 export const TOUR: TourStep[] = [
-  { tab: 'overview', key: 'tour.number', focus: '.stats' },
+  { tab: 'overview', key: 'tour.what', focus: '.chart' },
+  // The manual entry form, not the statistics card: the form defaults to 58, so the number the
+  // step names is literally on screen. The card shows whatever happens to be stored.
+  { tab: 'overview', key: 'tour.number', focus: '.manual' },
   { tab: 'overview', key: 'tour.column', focus: '.explainer' },
   { tab: 'pipeline', key: 'tour.fhir', stage: 'observation', focus: '.panels' },
   { tab: 'pipeline', key: 'tour.openehr', stage: 'composition', focus: '.panels' },

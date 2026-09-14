@@ -18,20 +18,33 @@
   const step = $derived(TOUR[index]!);
   const last = $derived(index === TOUR.length - 1);
 
-  // Putting the reader where the step is about, then ringing what it talks about. The delay lets
-  // the tab render first; an element that is not there is simply not highlighted.
+  /** Long enough for a tab that has to fetch before it can render what the step points at. */
+  const WAIT_FOR_TARGET_MS = 2500;
+  const RETRY_MS = 120;
+
+  // Putting the reader where the step is about, then ringing what it talks about. Some tabs run a
+  // request before the target exists — the pipeline inspector traces a reading first — so this waits
+  // for it rather than looking once and giving up.
   $effect(() => {
     const current = step;
     onshow(current.tab);
     if (current.stage) onstage?.(current.stage);
+    if (!current.focus) return;
 
-    const timer = setTimeout(() => {
-      if (!current.focus) return;
-      const target = document.querySelector(current.focus);
-      if (!target) return;
-      target.classList.add('tour-focus');
-      target.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    }, 260);
+    let timer: ReturnType<typeof setTimeout>;
+    let waited = 0;
+
+    const look = () => {
+      const target = document.querySelector(current.focus!);
+      if (target) {
+        target.classList.add('tour-focus');
+        target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        return;
+      }
+      waited += RETRY_MS;
+      if (waited < WAIT_FOR_TARGET_MS) timer = setTimeout(look, RETRY_MS);
+    };
+    timer = setTimeout(look, RETRY_MS);
 
     return () => {
       clearTimeout(timer);
