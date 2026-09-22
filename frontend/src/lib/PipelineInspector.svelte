@@ -88,10 +88,26 @@
 
   const steps = $derived<TraceStep[]>(trace?.steps ?? []);
   const step = $derived<TraceStep | null>(steps[selectedStep] ?? null);
-  /** The stage this one came from — shown beside it, so every screen reads "this became that". */
-  const previous = $derived<TraceStep | null>(
-    selectedStep > 0 ? (steps[selectedStep - 1] ?? null) : null,
-  );
+  /**
+   * The stage this one came from — shown beside it, so every screen reads "this became that".
+   *
+   * <p>Not simply the one before it in the list. The pipeline is mostly a chain but not entirely:
+   * looking up who a reading is about reaches a different store and produces nothing the next
+   * stage is built from. Pairing a stage with whatever happens to precede it would make the Bundle
+   * look like it was made out of the Patient.
+   */
+  const previous = $derived.by<TraceStep | null>(() => {
+    if (!step || step.aside) return null;
+    for (let index = selectedStep - 1; index >= 0; index--) {
+      const candidate = steps[index];
+      if (candidate && !candidate.aside) return candidate;
+    }
+    return null;
+  });
+
+  /** Position along the chain, counting only the stages that are part of it. */
+  const chainNumber = (index: number): number | null =>
+    steps[index]?.aside ? null : steps.slice(0, index + 1).filter((s) => !s.aside).length;
 
   /** A step that failed has no JSON; one that was rejected at the door still has the input. */
   const hasJson = (candidate: TraceStep | null): boolean =>
@@ -165,7 +181,7 @@
 
     <ol class="rail">
       {#each steps as item, index (item.id)}
-        <li>
+        <li class:aside={item.aside} class:before-aside={steps[index + 1]?.aside}>
           <button
             type="button"
             class="stage"
@@ -177,7 +193,9 @@
               selectedLink = null;
             }}
           >
-            <span class="stage-index">{index + 1}</span>
+            <span class="stage-index" class:aside={item.aside}>
+              {chainNumber(index) ?? '·'}
+            </span>
             <span class="stage-title">{item.title}</span>
             <span class="stage-actor">{item.actor}</span>
           </button>
@@ -406,6 +424,24 @@
     margin-left: 8px;
   }
 
+  /* No arrow into an aside and none out of it. It was looked up somewhere else rather than made
+     from the stage before it, and an arrow on either side claims exactly the descent that made
+     the Bundle look like it came out of the Patient. */
+  .rail li.aside::after,
+  .rail li.before-aside::after {
+    content: none;
+  }
+
+  .rail li.aside {
+    /* Set apart, so the chain reads as continuing past it rather than through it. */
+    margin: 0 10px;
+    opacity: 0.92;
+  }
+
+  .rail li.aside .stage {
+    border-style: dashed;
+  }
+
   .rail li {
     display: flex;
     align-items: center;
@@ -439,6 +475,12 @@
   .stage.failed {
     border-color: var(--critical);
     color: var(--critical);
+  }
+
+  /* An aside carries a dot instead of a number: it has no position in the chain, and giving it
+     one is exactly what made the stage after it look like its descendant. */
+  .stage-index.aside {
+    opacity: 0.55;
   }
 
   .stage-index {

@@ -205,13 +205,14 @@ public class TraceService {
                             messages.get("actor.fhirStore"), "fhir",
                             messages.get("explain.patient"),
                             tree(pulseObservations.encode(patient)))
-                    .withNote(messages.get("note.patient", patientId, ehrId)));
+                    .withNote(messages.get("note.patient", patientId, ehrId))
+                    .asAside());
         } catch (Exception e) {
             // The clinical half does not depend on this one, and saying so is more useful than a
             // stage that silently disappears when the FHIR store is down.
             steps.add(TraceStep.failed("patient", messages.get("step.patient"),
                     messages.get("actor.fhirStore"), messages.get("explain.patient.short"),
-                    messages.get("fail.fhirStore", e.getMessage())));
+                    messages.get("fail.fhirStore", e.getMessage())).asAside());
         }
     }
 
