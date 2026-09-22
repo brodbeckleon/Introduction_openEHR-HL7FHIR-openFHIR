@@ -23,7 +23,7 @@ class PulseObservationsTest {
      */
     @Test
     void carriesTheCodesTheMappingKeysOff() {
-        var observation = observations.observation(reading, "demo-patient");
+        var observation = observations.observation(reading, "max-mustermann");
 
         assertThat(observation.getStatus().toCode()).isEqualTo("final");
         assertThat(observation.getCategoryFirstRep().getCodingFirstRep().getCode())
@@ -34,7 +34,7 @@ class PulseObservationsTest {
 
     @Test
     void usesTheUnitTheOpenEhrArchetypeConstrainsTo() {
-        var quantity = observations.observation(reading, "demo-patient").getValueQuantity();
+        var quantity = observations.observation(reading, "max-mustermann").getValueQuantity();
 
         assertThat(quantity.getValue().doubleValue()).isEqualTo(58);
         assertThat(quantity.getCode()).isEqualTo("/min");
@@ -43,7 +43,7 @@ class PulseObservationsTest {
 
     @Test
     void roundTripsThroughJson() {
-        var encoded = observations.encode(observations.observation(reading, "demo-patient"));
+        var encoded = observations.encode(observations.observation(reading, "max-mustermann"));
         var parsed = observations.toReading(observations.parseObservation(encoded));
 
         assertThat(parsed.beatsPerMinute()).isEqualTo(58);
@@ -52,7 +52,7 @@ class PulseObservationsTest {
 
     @Test
     void wrapsObservationsInTheBundleTheContextMappingExpects() {
-        var bundle = observations.bundle(List.of(observations.observation(reading, "demo-patient")));
+        var bundle = observations.bundle(List.of(observations.observation(reading, "max-mustermann")));
 
         assertThat(bundle.getType()).isEqualTo(Bundle.BundleType.COLLECTION);
         assertThat(bundle.getEntry()).hasSize(1);

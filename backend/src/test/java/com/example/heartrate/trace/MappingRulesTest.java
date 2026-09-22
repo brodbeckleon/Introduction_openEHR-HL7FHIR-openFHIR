@@ -15,7 +15,7 @@ class MappingRulesTest {
                     new HeartrateProperties.Ehrbase("http://localhost", "u", "p"),
                     new HeartrateProperties.OpenFhir("http://localhost"),
                     new HeartrateProperties.FhirStore("http://localhost"),
-                    "heartrate_monitor.v1", "demo-patient", List.of(), "composer", "CH",
+                    "heartrate_monitor.v1", "max-mustermann", List.of(), "composer", "CH",
                     "../openfhir-bootstrap"),
             TestMessages.create());
 

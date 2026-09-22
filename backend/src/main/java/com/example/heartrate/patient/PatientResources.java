@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
  *
  * <p>Nothing is stored: the resource is built on every read from the directory entry and the EHR id
  * openEHR answers with. That is the point of this step — {@code Observation.subject} used to point
- * at a {@code Patient/demo-patient} that existed nowhere, and now it resolves.
+ * at a Patient that existed nowhere, and now it resolves.
  *
  * <p>The EHR id travels as a secondary identifier. A FHIR client that has the Patient can therefore
  * find its openEHR record without this service explaining the correspondence, which is the same

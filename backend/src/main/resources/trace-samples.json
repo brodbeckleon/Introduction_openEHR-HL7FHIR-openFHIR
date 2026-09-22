@@ -32,7 +32,7 @@
               ]
             },
             "subject": {
-              "reference": "Patient/demo-patient"
+              "reference": "Patient/max-mustermann"
             },
             "effectiveDateTime": "${today}",
             "valueQuantity": {

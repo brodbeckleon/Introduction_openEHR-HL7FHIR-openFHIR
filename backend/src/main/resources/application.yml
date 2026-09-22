@@ -15,25 +15,25 @@ spring:
 heartrate:
   template-id: heartrate_monitor.v1
   # The patient a request is about when it names none.
-  default-patient: demo-patient
+  default-patient: max-mustermann
   # Each patient gets an EHR of its own. The id is the only part openEHR stores — it goes into
   # EHR_STATUS.subject, which is how the EHR is found again after a restart.
   # Seeded into the FHIR store on first start. Only `id` ever reaches openEHR; everything else
   # here is what EHR_STATUS has no room for, which is the reason the FHIR store exists at all.
   patients:
-    - id: demo-patient
-      name: Demo Patient
+    - id: max-mustermann
+      name: Max Mustermann
       birth-date: 1985-03-12
-      gender: female
+      gender: male
       address:
         line: Kramgasse 49
         postal-code: "3011"
         city: Bern
         country: CH
-    - id: second-patient
-      name: Second Patient
+    - id: erika-musterfrau
+      name: Erika Musterfrau
       birth-date: 1971-11-02
-      gender: male
+      gender: female
       address:
         line: Bahnhofstrasse 12
         postal-code: "8001"

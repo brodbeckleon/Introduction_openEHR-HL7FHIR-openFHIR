@@ -14,7 +14,7 @@ class MappingLibraryTest {
             new HeartrateProperties.OpenFhir("http://localhost"),
                     new HeartrateProperties.FhirStore("http://localhost"),
             "heartrate_monitor.v1",
-            "demo-patient",
+            "max-mustermann",
             List.of(),
             "composer",
             "CH",

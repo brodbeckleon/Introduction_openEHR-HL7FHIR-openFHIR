@@ -44,7 +44,7 @@ The diagram above is the translation axis. There is a second one: where a record
 
 openEHR anchors a record on an identifier and nothing more — `EHR_STATUS.subject` has no room for a
 name, a gender or an address. So a patient could be pointed at but never described, and
-`Observation.subject` referred to a `Patient/demo-patient` that existed nowhere. `fhir-server/`
+`Observation.subject` referred to a Patient that existed nowhere. `fhir-server/`
 is where those belong.
 
 | Question | Answered by |

@@ -43,9 +43,9 @@ class AqlServiceTest {
     void refusesAnythingThatIsNotASelect() {
         var service = serviceAnswering(null, null);
 
-        assertThat(service.run("DELETE FROM EHR e", "demo-patient").error()).contains("SELECT");
-        assertThat(service.run("   ", "demo-patient").error()).isNotNull();
-        assertThat(service.run(null, "demo-patient").error()).isNotNull();
+        assertThat(service.run("DELETE FROM EHR e", "max-mustermann").error()).contains("SELECT");
+        assertThat(service.run("   ", "max-mustermann").error()).isNotNull();
+        assertThat(service.run(null, "max-mustermann").error()).isNotNull();
     }
 
     @Test
@@ -56,7 +56,7 @@ class AqlServiceTest {
                  "rows":[["2026-09-11T00:00:00Z", 46.0]]}
                 """);
 
-        var result = serviceAnswering(answer, null).run("SELECT x FROM EHR e", "demo-patient");
+        var result = serviceAnswering(answer, null).run("SELECT x FROM EHR e", "max-mustermann");
 
         assertThat(result.error()).isNull();
         assertThat(result.columns()).containsExactly(
@@ -80,7 +80,7 @@ class AqlServiceTest {
                 """.getBytes(java.nio.charset.StandardCharsets.UTF_8),
                 java.nio.charset.StandardCharsets.UTF_8);
 
-        var result = serviceAnswering(null, failure).run("SELECT nonsense FROM WHERE", "demo-patient");
+        var result = serviceAnswering(null, failure).run("SELECT nonsense FROM WHERE", "max-mustermann");
 
         assertThat(result.error()).isEqualTo("Could not parse AQL query: mismatched input 'WHERE'");
         assertThat(result.error()).doesNotContain("400");
@@ -94,7 +94,7 @@ class AqlServiceTest {
         }
         var answer = mapper.readTree("{\"columns\":[{\"name\":\"n\"}],\"rows\":" + rows + "]}");
 
-        var result = serviceAnswering(answer, null).run("SELECT n FROM EHR e", "demo-patient");
+        var result = serviceAnswering(answer, null).run("SELECT n FROM EHR e", "max-mustermann");
 
         assertThat(result.rows()).hasSize(200);
         assertThat(result.returned()).isEqualTo(300);
@@ -106,7 +106,7 @@ class AqlServiceTest {
     void keepsNullsRatherThanDroppingThem() throws Exception {
         var answer = mapper.readTree("{\"columns\":[{\"name\":\"bpm\"}],\"rows\":[[null],[null]]}");
 
-        var result = serviceAnswering(answer, null).run("SELECT x FROM EHR e", "demo-patient");
+        var result = serviceAnswering(answer, null).run("SELECT x FROM EHR e", "max-mustermann");
 
         assertThat(result.rows()).hasSize(2);
         assertThat(result.rows().get(0).get(0).isNull()).isTrue();
@@ -116,6 +116,6 @@ class AqlServiceTest {
     void acceptsSelectInAnyCase() throws Exception {
         var answer = mapper.readTree("{\"columns\":[],\"rows\":[]}");
 
-        assertThat(serviceAnswering(answer, null).run("select c from EHR e", "demo-patient").error()).isNull();
+        assertThat(serviceAnswering(answer, null).run("select c from EHR e", "max-mustermann").error()).isNull();
     }
 }

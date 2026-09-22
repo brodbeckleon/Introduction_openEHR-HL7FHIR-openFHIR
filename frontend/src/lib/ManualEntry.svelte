@@ -3,6 +3,7 @@
   import JsonPanel from './JsonPanel.svelte';
   import VersionHistory from './VersionHistory.svelte';
   import { t } from './i18n.svelte';
+  import { patient } from './patient.svelte';
   import type { DailyRestingHeartRate } from './types';
 
   interface Props {
@@ -62,7 +63,10 @@
     code: {
       coding: [{ system: LOINC, code: '40443-4', display: 'Heart rate --resting' }],
     },
-    subject: { reference: 'Patient/demo-patient' },
+    // Whoever the page is showing. The backend scopes the write by the ?patient= parameter, so a
+    // fixed id here would not send the reading to the wrong record — it would do something worse
+    // and label it with the wrong subject.
+    subject: { reference: `Patient/${patient() ?? ''}` },
     // Midnight UTC: a resting heart rate is a whole-day value, not a moment.
     effectiveDateTime: `${date}T00:00:00Z`,
     valueQuantity: { value: bpm, unit: '/min', system: UCUM, code: '/min' },
