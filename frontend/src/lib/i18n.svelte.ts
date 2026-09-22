@@ -140,11 +140,6 @@ const EN: Dictionary = {
   'diagram.open.openfhir': 'Open the mappings \u2014 the FHIR Connect rules openFHIR executes',
   'diagram.open.openehr':
     'Open the template explorer \u2014 the openEHR model the record is validated against',
-  'graph.title': 'How the rules nest',
-  'graph.lede':
-    'The same rules as the list above, with the part a list cannot show: rules contain rules. A line means the rule below it only applies inside the one above \u2014 which is what the indentation in the files means, and what decides whether a rule ever runs. Nothing here is hand-drawn: it is built from the files below, so editing a mapping redraws it. Pick a box to open its rule.',
-  'graph.open': 'Open the rule \u201c{0}\u201d',
-  'graph.drawing': 'Drawing\u2026',
   'tab.record': 'Two stores',
   'record.title': 'One record, two stores',
   'record.lede':
@@ -441,11 +436,6 @@ const DE: Dictionary = {
     'Mappings \u00f6ffnen \u2014 die FHIR-Connect-Regeln, die openFHIR ausf\u00fchrt',
   'diagram.open.openehr':
     'Template-Explorer \u00f6ffnen \u2014 das openEHR-Modell, gegen das validiert wird',
-  'graph.title': 'Wie die Regeln ineinander liegen',
-  'graph.lede':
-    'Dieselben Regeln wie in der Liste oben, aber mit dem, was eine Liste nicht zeigen kann: Regeln enthalten Regeln. Eine Linie bedeutet, dass die untere Regel nur innerhalb der oberen gilt \u2014 genau das sagt die Einr\u00fcckung in den Dateien, und genau das entscheidet, ob eine Regel \u00fcberhaupt greift. Nichts davon ist von Hand gezeichnet: es entsteht aus den Dateien unten, eine Mapping-\u00c4nderung zeichnet es also neu. Eine Box anklicken \u00f6ffnet ihre Regel.',
-  'graph.open': 'Regel \u201e{0}\u201c \u00f6ffnen',
-  'graph.drawing': 'Wird gezeichnet\u2026',
   'tab.record': 'Zwei Speicher',
   'record.title': 'Ein Record, zwei Speicher',
   'record.lede':

@@ -13,18 +13,19 @@ No *clinical* data is stored in FHIR and nothing is exchanged in openEHR — eac
 job it is good at, and openFHIR is the only thing that knows how to get from one to the other. Where
 the administrative half of a record lives is a separate question, and the next section is about it.
 
-```mermaid
-flowchart LR
-    obs["FHIR Observation<br/>LOINC 40443-4 · UCUM /min"]
-    comp["openEHR COMPOSITION<br/>encounter.v1 · pulse.v2"]
-    cdr[("EHRbase<br/>openEHR CDR")]
-    bundle["FHIR Bundle<br/>GET /fhir/Observation"]
-    chart["Svelte chart"]
-
-    obs -->|"openFHIR<br/>/openfhir/toopenehr"| comp
-    comp --> cdr
-    cdr -->|"openFHIR<br/>/openfhir/tofhir"| bundle
-    cdr -->|AQL| chart
+```
+             FHIR Observation (R4, LOINC 40443-4)
+                  │
+                  ▼
+              openFHIR  ──/openfhir/toopenehr──┐
+                  │  (FHIR Connect mappings)   │
+                  ▼                            │
+          openEHR COMPOSITION                  │
+                  │                            │
+                  ▼                            │
+              EHRbase  ────── AQL ─────────────┴──► Svelte chart
+            (openEHR CDR)  │
+                           └─► /openfhir/tofhir ─► FHIR Bundle (GET /fhir/Observation)
 ```
 
 - **Importing.** A resting heart rate becomes an `Observation` (LOINC `40443-4`, category
