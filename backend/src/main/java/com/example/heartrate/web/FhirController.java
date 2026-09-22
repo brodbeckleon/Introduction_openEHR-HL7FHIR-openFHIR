@@ -10,6 +10,7 @@ import org.hl7.fhir.r4.model.OperationOutcome;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -114,6 +115,23 @@ public class FhirController {
         return ResponseEntity.ok()
                 .contentType(MediaType.valueOf(FHIR_JSON))
                 .body(pulseObservations.encode(bundle));
+    }
+
+    /**
+     * One stored reading by its id.
+     *
+     * <p>The id is the openEHR composition's versioned object uid — this service assigns it on
+     * create rather than keeping the one a client proposed, which is what makes the read possible
+     * without an index translating between the two addressing schemes.
+     */
+    @GetMapping(value = "/Observation/{id}", produces = FHIR_JSON)
+    public ResponseEntity<String> read(
+            @PathVariable String id, @RequestParam(required = false) String patient) {
+        return service.read(id, patients.resolve(patient))
+                .map(observation -> ResponseEntity.ok()
+                        .contentType(MediaType.valueOf(FHIR_JSON))
+                        .body(pulseObservations.encode(observation)))
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     /** Everything stored in the last {@code days} days, as a FHIR searchset Bundle. */

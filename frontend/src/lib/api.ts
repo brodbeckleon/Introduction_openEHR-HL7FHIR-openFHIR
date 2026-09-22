@@ -10,7 +10,9 @@ import type {
   TemplateView,
   Trace,
   TrafficEntry,
+  AssembledRecord,
   PatientSummary,
+  RecordEntry,
   TraceSample,
 } from './types';
 import { language } from './i18n.svelte';
@@ -280,4 +282,54 @@ export async function fetchPatients(): Promise<PatientSummary[]> {
       },
     ];
   });
+}
+
+/**
+ * Everything known about the current patient, as the backend assembles it from both stores.
+ *
+ * The Bundle itself says nothing about where each entry came from — deliberately, because a FHIR
+ * client should not have to care. The rule is applied here instead: a Patient can only have come
+ * from the FHIR store, an Observation only from openEHR by way of openFHIR.
+ */
+export async function fetchAssembledRecord(days = 30): Promise<AssembledRecord> {
+  const id = patient();
+  if (!id) throw new Error('No patient selected yet.');
+  const response = await fetch(`/fhir/Patient/${encodeURIComponent(id)}/$everything?days=${days}`, {
+    cache: 'no-store',
+    headers: headers(),
+  });
+  if (!response.ok) throw failure(response, 'Loading the assembled record');
+  const bundle = (await response.json()) as {
+    total?: number;
+    entry?: { resource?: Record<string, unknown> }[];
+  };
+
+  const entries: RecordEntry[] = (bundle.entry ?? []).flatMap((entry) => {
+    const r = entry.resource;
+    if (!r || typeof r.resourceType !== 'string') return [];
+    const meta = r.meta as { versionId?: string } | undefined;
+    return [
+      {
+        resourceType: r.resourceType,
+        id: String(r.id ?? ''),
+        origin: r.resourceType === 'Observation' ? 'openehr' : 'fhir-store',
+        summary: summarise(r),
+        version: meta?.versionId,
+      },
+    ];
+  });
+  return { total: bundle.total ?? entries.length, entries };
+}
+
+function summarise(resource: Record<string, unknown>): string {
+  if (resource.resourceType === 'Observation') {
+    const quantity = resource.valueQuantity as { value?: number; unit?: string } | undefined;
+    const when = String(resource.effectiveDateTime ?? '').slice(0, 10);
+    return `${when} — ${quantity?.value ?? '?'} ${quantity?.unit ?? ''}`.trim();
+  }
+  const names = resource.name as { text?: string }[] | undefined;
+  const addresses = resource.address as { postalCode?: string; city?: string }[] | undefined;
+  const place = addresses?.[0];
+  const where = place ? `, ${place.postalCode ?? ''} ${place.city ?? ''}`.trimEnd() : '';
+  return `${names?.[0]?.text ?? resource.id}${where}`;
 }

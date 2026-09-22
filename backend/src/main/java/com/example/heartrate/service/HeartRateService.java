@@ -9,6 +9,7 @@ import com.example.heartrate.model.Reading;
 import com.example.heartrate.openehr.EhrbaseClient;
 import com.example.heartrate.openfhir.OpenFhirClient;
 import com.example.heartrate.patient.EhrResolver;
+import com.example.heartrate.patient.PatientDirectory;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
@@ -84,6 +85,7 @@ public class HeartRateService {
     private final HeartRateExtractor extractor;
     private final HeartrateProperties properties;
     private final EhrResolver ehrResolver;
+    private final PatientDirectory directory;
     private final ObjectMapper objectMapper;
 
     public HeartRateService(
@@ -93,6 +95,7 @@ public class HeartRateService {
             HeartRateExtractor extractor,
             HeartrateProperties properties,
             EhrResolver ehrResolver,
+            PatientDirectory directory,
             ObjectMapper objectMapper) {
         this.ehrbase = ehrbase;
         this.openFhir = openFhir;
@@ -100,6 +103,7 @@ public class HeartRateService {
         this.extractor = extractor;
         this.properties = properties;
         this.ehrResolver = ehrResolver;
+        this.directory = directory;
         this.objectMapper = objectMapper;
     }
 
@@ -133,7 +137,58 @@ public class HeartRateService {
             log.debug("Stored resting heart rate {} as composition {}",
                     observation.getValueQuantity().getValue(), uid);
         }
+        // The server assigns the id, as a FHIR server may, and the id it assigns is the openEHR
+        // composition's own. Whatever id the client proposed is dropped here — keeping it would mean
+        // holding a table that translates between the two, and there is nothing that table would
+        // know which the uid does not already say.
+        if (uid != null) {
+            observation.setId(versionedObjectUid(uid));
+            observation.getMeta().setVersionId(versionNumber(uid));
+        }
         return observation;
+    }
+
+    /**
+     * One stored reading, addressed the way FHIR addresses a resource.
+     *
+     * <p>No index stands behind this. The id <em>is</em> the openEHR versioned object uid, so the
+     * lookup is a composition read rather than a translation — which is only possible because this
+     * service generates the outgoing FHIR and can therefore choose the id.
+     *
+     * <p>openEHR addresses a composition as (EHR, uid) while FHIR addresses a resource by id alone,
+     * so the record has to be named from outside or found. Naming the patient is one read; leaving
+     * it out costs a scan of the roster, which is honest at two patients and would not be at two
+     * million.
+     */
+    public Optional<Observation> read(String observationId, String patientId) {
+        var found = readFrom(observationId, patientId);
+        if (found.isPresent()) {
+            return found;
+        }
+        for (var other : directory.roster()) {
+            if (other.id().equals(patientId)) {
+                continue;
+            }
+            var elsewhere = readFrom(observationId, other.id());
+            if (elsewhere.isPresent()) {
+                return elsewhere;
+            }
+        }
+        return Optional.empty();
+    }
+
+    private Optional<Observation> readFrom(String observationId, String patientId) {
+        JsonNode composition;
+        try {
+            composition = ehrbase.getComposition(ehrResolver.ehrIdFor(patientId), observationId);
+        } catch (Exception e) {
+            log.debug("No composition {} in {}'s record: {}", observationId, patientId, e.getMessage());
+            return Optional.empty();
+        }
+        if (composition == null || composition.isNull()) {
+            return Optional.empty();
+        }
+        return mapToObservations(composition, patientId).stream().findFirst();
     }
 
     private Optional<OffsetDateTime> measuredAt(Observation observation) {
@@ -172,6 +227,12 @@ public class HeartRateService {
     private static String versionedObjectUid(String versionUid) {
         int marker = versionUid.indexOf("::");
         return marker < 0 ? versionUid : versionUid.substring(0, marker);
+    }
+
+    /** The trailing {@code ::n} of a version uid, which is what FHIR calls meta.versionId. */
+    private static String versionNumber(String versionUid) {
+        int marker = versionUid.lastIndexOf("::");
+        return marker < 0 ? null : versionUid.substring(marker + 2);
     }
 
     /** Commit times are ISO-8601 but not uniformly precise, so they are parsed rather than compared as text. */
@@ -296,11 +357,19 @@ public class HeartRateService {
             var resource = entry.path("resource");
             if ("Observation".equals(resource.path("resourceType").asText())) {
                 var observation = pulseObservations.parseObservation(resource.toString());
-                // openFHIR hands back contained-style ids ("#uuid"); strip the marker so the
-                // Observation is addressable as a standalone resource again.
-                var id = observation.getIdElement().getIdPart();
-                if (id != null && id.startsWith("#")) {
-                    observation.setId(id.substring(1));
+                // openFHIR hands back an id of its own making; the composition's uid is the better
+                // one, because it is what the record is actually addressed by. meta.versionId comes
+                // from the same uid, which is how openEHR's versioning reaches FHIR at all: correct
+                // a reading and the id stays while the version moves.
+                var uid = composition.path("uid").path("value").asText(null);
+                if (uid != null) {
+                    observation.setId(versionedObjectUid(uid));
+                    observation.getMeta().setVersionId(versionNumber(uid));
+                } else {
+                    var id = observation.getIdElement().getIdPart();
+                    if (id != null && id.startsWith("#")) {
+                        observation.setId(id.substring(1));
+                    }
                 }
                 observation.setSubject(
                         new org.hl7.fhir.r4.model.Reference("Patient/" + patientId));

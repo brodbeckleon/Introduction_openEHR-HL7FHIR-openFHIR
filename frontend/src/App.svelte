@@ -6,6 +6,7 @@
   import ManualEntry from './lib/ManualEntry.svelte';
   import MappingsTab from './lib/MappingsTab.svelte';
   import PipelineInspector from './lib/PipelineInspector.svelte';
+  import RecordComposition from './lib/RecordComposition.svelte';
   import LanguageSwitch from './lib/LanguageSwitch.svelte';
   import PatientSwitch from './lib/PatientSwitch.svelte';
   import StandardsDiagram from './lib/StandardsDiagram.svelte';
@@ -39,6 +40,7 @@
     { id: 'aql', key: 'tab.aql' },
     { id: 'mappings', key: 'tab.mappings' },
     { id: 'template', key: 'tab.template' },
+    { id: 'record', key: 'tab.record' },
   ] as const;
 
   type Tab = (typeof TABS)[number]['id'];
@@ -288,6 +290,8 @@
     {#key reloadKey}<AqlPlayground />{/key}
   {:else if tab === 'mappings'}
     {#key reloadKey}<MappingsTab focus={mappingFocus} />{/key}
+  {:else if tab === 'record'}
+    <RecordComposition />
   {:else if tab === 'template'}
     {#key reloadKey}<TemplateExplorer />{/key}
   {:else}

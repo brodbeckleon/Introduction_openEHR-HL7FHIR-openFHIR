@@ -11,7 +11,7 @@
 
 export interface TourStep {
   /** The tab this step is told on. */
-  tab: 'overview' | 'pipeline' | 'traffic' | 'aql' | 'mappings' | 'template';
+  tab: 'overview' | 'pipeline' | 'traffic' | 'aql' | 'mappings' | 'template' | 'record';
   /** Message key prefix; `<key>.title` and `<key>.body` must exist in both languages. */
   key: string;
   /** Optional element to ring and scroll to — skipped silently when it is not on screen. */
@@ -32,6 +32,10 @@ export const TOUR: TourStep[] = [
   { tab: 'pipeline', key: 'tour.fhir', stage: 'observation', focus: '.panels' },
   { tab: 'pipeline', key: 'tour.openehr', stage: 'composition', focus: '.panels' },
   { tab: 'pipeline', key: 'tour.lost', stage: 'roundtrip', focus: '.differences' },
+  // Straight after 'lost': that step has just shown openEHR dropping what its archetype does not
+  // model. This is the other half of the same observation — some of what it drops has to live
+  // somewhere, and that somewhere is a second store.
+  { tab: 'record', key: 'tour.stores', focus: '.columns' },
   { tab: 'mappings', key: 'tour.translate', focus: '.mapping' },
   // After the mappings, never before: the point of the template is the contrast with them, and
   // that only lands once the reader knows what a mapping is.

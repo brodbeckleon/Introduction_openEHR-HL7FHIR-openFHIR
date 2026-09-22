@@ -238,3 +238,19 @@ export interface PatientSummary {
   name: string;
   ehrId: string | null;
 }
+
+/** One entry of the assembled record, with the store it came out of. */
+export interface RecordEntry {
+  resourceType: string;
+  id: string;
+  /** Which store answered for this entry. Derived from the resource type, not sent by the server. */
+  origin: 'fhir-store' | 'openehr';
+  summary: string;
+  /** openEHR's version, surfaced as FHIR meta.versionId. Absent on administrative resources. */
+  version?: string;
+}
+
+export interface AssembledRecord {
+  total: number;
+  entries: RecordEntry[];
+}

@@ -38,6 +38,38 @@ Data only ever enters through the FHIR endpoints — no back door into the datab
 Even the by-hand entry form builds a FHIR Observation in the browser and posts it to
 `/fhir/Observation` like any other client would.
 
+## Two stores, and which answers what
+
+The diagram above is the translation axis. There is a second one: where a record actually lives.
+
+openEHR anchors a record on an identifier and nothing more — `EHR_STATUS.subject` has no room for a
+name, a gender or an address. So a patient could be pointed at but never described, and
+`Observation.subject` referred to a `Patient/demo-patient` that existed nowhere. `fhir-server/`
+is where those belong.
+
+| Question | Answered by |
+|---|---|
+| Which patients exist? | configuration (`heartrate.patients`) — the demo's roster |
+| Who are they? | the FHIR store — name, gender, birth date, address |
+| What was measured? | openEHR, as compositions in EHRbase |
+
+The two are joined by one ordinary identifier: the Patient carries its EHR id as a secondary
+identifier, and openEHR carries the patient id in `EHR_STATUS.subject`. Either side can be reached
+from the other, and neither server knows the other exists.
+
+`GET /fhir/Patient/{id}/$everything` is the only place both halves meet — one Bundle, assembled from
+two stores, with nothing in it saying which entry came from where. The **Two stores** tab shows that
+assembly taken apart again.
+
+Keeping the roster in configuration rather than in the FHIR store is what lets the halves fail
+independently: stop `fhir-server` and the chart still draws, the AQL playground still answers, and
+only the names fall back to the seed.
+
+**No index table stands between the two.** A FHIR `Observation.id` here *is* the openEHR versioned
+object uid, assigned by this service on create rather than taken from the client — so reading one
+back is a composition read, not a translation, and `meta.versionId` carries openEHR's version
+straight through. Correct a reading and the id stays while the version moves.
+
 ## Importing data
 
 `POST /fhir/Bundle` (and the **Import a file** button) takes a FHIR Bundle carrying resting heart
@@ -318,9 +350,10 @@ the latest version every time, which looks exactly like a record whose history n
 
 | Path | What it is |
 |---|---|
-| `docker-compose.yml` | EHRbase + Postgres, openFHIR + MongoDB, the backend and the frontend dev server |
+| `docker-compose.yml` | EHRbase + Postgres, openFHIR + MongoDB, the FHIR store + Postgres, the backend and the frontend dev server |
 | `openfhir-bootstrap/` | The openEHR operational template and the FHIR Connect mappings openFHIR loads on boot |
 | `backend/` | Spring Boot service (Gradle, Java 21) — the only thing that talks to both servers; its Dockerfile builds from the repository root, because it needs `openfhir-bootstrap/` too |
+| `fhir-server/` | Spring Boot service (Gradle, Java 21) holding the administrative half — `hapi-fhir-server` as a library with hand-written resource providers, not `hapi-fhir-jpaserver-starter` |
 | `frontend/` | Svelte 5 + TypeScript + Vite single page app |
 
 ### The mappings
@@ -425,7 +458,9 @@ curl -u ehrbase-user:SuperSecretPassword \
 | `GET` | `/api/traffic?since=0` | Calls made to openFHIR and EHRbase, for the traffic console |
 | `GET` | `/api/about` | What this build can do; a 404 tells the page the backend is older than it is |
 | `GET` | `/fhir/Patient` | The patients this instance knows, projected from the directory and their EHR ids |
-| `GET` | `/fhir/Patient/{id}` | One of them; this is what `Observation.subject` now resolves to |
+| `GET` | `/fhir/Patient/{id}` | One of them; this is what `Observation.subject` resolves to |
+| `GET` | `/fhir/Patient/{id}/$everything` | The whole record as one Bundle — the patient from the FHIR store, the readings from openEHR |
+| `GET` | `/fhir/Observation/{id}` | One reading, addressed by the openEHR composition uid that is its FHIR id |
 
 ## Notes
 
@@ -433,6 +468,10 @@ curl -u ehrbase-user:SuperSecretPassword \
   looked up from `EHR_STATUS.subject` and created on first use, so the record survives restarts
   without this service remembering a uuid. `heartrate.default-patient` is who a request is about
   when it names none.
+- Every clinical endpoint takes `?patient=`, defaulting to `heartrate.default-patient`. An id outside
+  the roster is a 404 rather than a new record.
+- The FHIR store is reachable on `:18083` and its Postgres on `:18084`, so `cd fhir-server &&
+  ./gradlew bootRun` talks to the same database the container does.
 - The operational template was derived from Better's *NEWS2 Encounter Parent* template, reduced to
   the single pulse observation.
 - The open-source edition of openFHIR has no authentication; EHRbase runs with basic auth. Neither

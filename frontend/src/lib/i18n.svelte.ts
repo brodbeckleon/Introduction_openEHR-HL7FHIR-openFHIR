@@ -133,6 +133,24 @@ const EN: Dictionary = {
   'aql.nullNote':
     'Every value in at least one row is null. In AQL a path that does not exist is not an error: the query matches the observations and finds nothing at that path. This is the failure mode to know about.',
 
+  'tour.stores.title': 'Where the rest of it lives',
+  'tour.stores.body':
+    'The last step showed openEHR keeping only what its archetype models. The patient is the same story: EHR_STATUS anchors a record on an identifier and has room for neither a name nor an address. So there is a second store \u2014 an ordinary FHIR server \u2014 and a patient record is assembled from both. One identifier joins them, and stopping either one leaves the other working. That is not a workaround; it is what having two models actually costs, and what it buys.',
+  'tab.record': 'Two stores',
+  'record.title': 'One record, two stores',
+  'record.lede':
+    'This is what a single patient record looks like when the clinical half lives in openEHR and the administrative half does not. The backend asks both and hands back one FHIR Bundle; neither store holds the other\u2019s part, and nothing in the Bundle says which came from where.',
+  'record.fhirStore': 'FHIR store',
+  'record.fhirStore.what':
+    'Name, gender, birth date, address. openEHR\u2019s EHR_STATUS anchors a record on an identifier and has room for nothing else \u2014 which is the entire reason this server exists.',
+  'record.openehr': 'openEHR, via openFHIR',
+  'record.openehr.what':
+    'The readings, stored as compositions and mapped back to FHIR on the way out. The id of each one is the openEHR versioned object uid, so no table translates between the two.',
+  'record.version': 'openEHR\u2019s version of this composition, surfaced as FHIR meta.versionId',
+  'record.more': 'and {0} more',
+  'record.note':
+    'Assembled from {0} entries. Stop the FHIR store and the chart keeps drawing \u2014 only the names go missing, because the two halves fail independently.',
+  'record.loading': 'Assembling\u2026',
   'lang.label': 'Language',
   'patient.label': 'Patient',
   'patient.ehr': 'The openEHR record this patient\u2019s readings are stored in',
@@ -406,6 +424,24 @@ const DE: Dictionary = {
   'aql.nullNote':
     'In mindestens einer Zeile ist jeder Wert null. Ein Pfad, den es nicht gibt, ist in AQL kein Fehler: die Abfrage trifft die Observations und findet an dieser Stelle nichts. Das ist der Fehlermodus, den man kennen sollte.',
 
+  'tour.stores.title': 'Wo der Rest liegt',
+  'tour.stores.body':
+    'Der letzte Schritt hat gezeigt, dass openEHR nur beh\u00e4lt, was sein Archetyp modelliert. Beim Patienten ist es dieselbe Geschichte: EHR_STATUS verankert einen Record an einer Kennung und hat weder f\u00fcr einen Namen noch f\u00fcr eine Adresse Platz. Also gibt es einen zweiten Speicher \u2014 einen gew\u00f6hnlichen FHIR-Server \u2014 und ein Patientenrecord wird aus beiden zusammengesetzt. Eine einzige Kennung verbindet sie, und f\u00e4llt einer aus, arbeitet der andere weiter. Das ist kein Notbehelf, sondern der Preis und der Gewinn zweier Modelle.',
+  'tab.record': 'Zwei Speicher',
+  'record.title': 'Ein Record, zwei Speicher',
+  'record.lede':
+    'So sieht ein einzelner Patientenrecord aus, wenn die klinische H\u00e4lfte in openEHR liegt und die administrative nicht. Das Backend fragt beide und liefert ein einziges FHIR-Bundle zur\u00fcck; keiner der beiden Speicher h\u00e4lt den Teil des anderen, und im Bundle steht nirgends, was woher kam.',
+  'record.fhirStore': 'FHIR-Store',
+  'record.fhirStore.what':
+    'Name, Geschlecht, Geburtsdatum, Adresse. openEHRs EHR_STATUS verankert einen Record an einer Kennung und hat f\u00fcr nichts anderes Platz \u2014 genau daf\u00fcr gibt es diesen Server.',
+  'record.openehr': 'openEHR, \u00fcber openFHIR',
+  'record.openehr.what':
+    'Die Messwerte, als Compositions gespeichert und beim Herausgeben nach FHIR zur\u00fcckgemappt. Die Id jeder einzelnen ist das openEHR-Objekt-uid \u2014 deshalb braucht es keine \u00dcbersetzungstabelle.',
+  'record.version': 'openEHRs Version dieser Composition, sichtbar gemacht als FHIR meta.versionId',
+  'record.more': 'und {0} weitere',
+  'record.note':
+    'Aus {0} Eintr\u00e4gen zusammengesetzt. Stoppt man den FHIR-Store, zeichnet das Chart weiter \u2014 nur die Namen fehlen, weil die beiden H\u00e4lften unabh\u00e4ngig ausfallen.',
+  'record.loading': 'Wird zusammengesetzt\u2026',
   'lang.label': 'Sprache',
   'patient.label': 'Patient',
   'patient.ehr': 'Der openEHR-Record, in dem die Messwerte dieses Patienten liegen',
