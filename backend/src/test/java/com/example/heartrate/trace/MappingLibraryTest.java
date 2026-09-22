@@ -3,6 +3,7 @@ package com.example.heartrate.trace;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.heartrate.config.HeartrateProperties;
+import java.util.List;
 import com.example.heartrate.config.TestMessages;
 import org.junit.jupiter.api.Test;
 
@@ -12,8 +13,8 @@ class MappingLibraryTest {
             new HeartrateProperties.Ehrbase("http://localhost", "u", "p"),
             new HeartrateProperties.OpenFhir("http://localhost"),
             "heartrate_monitor.v1",
-            "ehr-id",
             "demo-patient",
+            List.of(),
             "composer",
             "CH",
             "../openfhir-bootstrap"),

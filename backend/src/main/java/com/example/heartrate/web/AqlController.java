@@ -3,6 +3,7 @@ package com.example.heartrate.web;
 import com.example.heartrate.aql.AqlResult;
 import com.example.heartrate.aql.AqlService;
 import com.example.heartrate.config.Messages;
+import com.example.heartrate.patient.PatientDirectory;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -28,16 +30,22 @@ public class AqlController {
     private final AqlService service;
     private final ObjectMapper objectMapper;
     private final Messages messages;
+    private final PatientDirectory patients;
 
-    public AqlController(AqlService service, ObjectMapper objectMapper, Messages messages) {
+    public AqlController(
+            AqlService service,
+            ObjectMapper objectMapper,
+            Messages messages,
+            PatientDirectory patients) {
         this.service = service;
         this.objectMapper = objectMapper;
         this.messages = messages;
+        this.patients = patients;
     }
 
     @PostMapping(consumes = MediaType.TEXT_PLAIN_VALUE)
-    public AqlResult run(@RequestBody String query) {
-        return service.run(query);
+    public AqlResult run(@RequestBody String query, @RequestParam(required = false) String patient) {
+        return service.run(query, patients.resolve(patient));
     }
 
     /** Ready-made queries, each chosen to show one thing about AQL. */

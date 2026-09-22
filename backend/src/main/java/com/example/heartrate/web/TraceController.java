@@ -1,6 +1,7 @@
 package com.example.heartrate.web;
 
 import com.example.heartrate.config.Messages;
+import com.example.heartrate.patient.PatientDirectory;
 import com.example.heartrate.trace.Trace;
 import com.example.heartrate.trace.TraceService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -30,11 +31,17 @@ public class TraceController {
     private final TraceService service;
     private final ObjectMapper objectMapper;
     private final Messages messages;
+    private final PatientDirectory patients;
 
-    public TraceController(TraceService service, ObjectMapper objectMapper, Messages messages) {
+    public TraceController(
+            TraceService service,
+            ObjectMapper objectMapper,
+            Messages messages,
+            PatientDirectory patients) {
         this.service = service;
         this.objectMapper = objectMapper;
         this.messages = messages;
+        this.patients = patients;
     }
 
     /**
@@ -44,8 +51,11 @@ public class TraceController {
      *     by default the trace is a dry run and the record is left alone
      */
     @PostMapping(consumes = {MediaType.APPLICATION_JSON_VALUE, "application/fhir+json"})
-    public Trace trace(@RequestBody String json, @RequestParam(defaultValue = "false") boolean store) {
-        return service.trace(json, store);
+    public Trace trace(
+            @RequestBody String json,
+            @RequestParam(defaultValue = "false") boolean store,
+            @RequestParam(required = false) String patient) {
+        return service.trace(json, store, patients.resolve(patient));
     }
 
     /**

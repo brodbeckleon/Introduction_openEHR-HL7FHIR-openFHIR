@@ -14,9 +14,17 @@ spring:
 
 heartrate:
   template-id: heartrate_monitor.v1
-  # Fixed EHR so the demo keeps reading the same record across restarts.
-  ehr-id: 7f8b1c2d-4e5a-4b6c-8d9e-0a1b2c3d4e5f
-  patient-id: demo-patient
+  # The patient a request is about when it names none.
+  default-patient: demo-patient
+  # Each patient gets an EHR of its own. The id is the only part openEHR stores — it goes into
+  # EHR_STATUS.subject, which is how the EHR is found again after a restart.
+  patients:
+    - id: demo-patient
+      name: Demo Patient
+      birth-date: 1985-03-12
+    - id: second-patient
+      name: Second Patient
+      birth-date: 1971-11-02
   composer-name: Heart rate monitor
   territory: CH
   # Relative to the working directory of `./gradlew bootRun`, i.e. backend/.

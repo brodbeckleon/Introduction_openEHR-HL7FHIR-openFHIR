@@ -6,6 +6,7 @@ import com.example.heartrate.fhir.HeartRateExtractor;
 import com.example.heartrate.fhir.PulseObservations;
 import com.example.heartrate.model.Reading;
 import com.example.heartrate.openehr.EhrbaseClient;
+import com.example.heartrate.patient.EhrResolver;
 import com.example.heartrate.openfhir.OpenFhirClient;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -45,6 +46,7 @@ public class TraceService {
     private final MappingLibrary mappings;
     private final Messages messages;
     private final HeartrateProperties properties;
+    private final EhrResolver ehrResolver;
     private final ObjectMapper objectMapper;
 
     public TraceService(
@@ -55,6 +57,7 @@ public class TraceService {
             MappingLibrary mappings,
             Messages messages,
             HeartrateProperties properties,
+            EhrResolver ehrResolver,
             ObjectMapper objectMapper) {
         this.openFhir = openFhir;
         this.ehrbase = ehrbase;
@@ -63,10 +66,11 @@ public class TraceService {
         this.mappings = mappings;
         this.messages = messages;
         this.properties = properties;
+        this.ehrResolver = ehrResolver;
         this.objectMapper = objectMapper;
     }
 
-    public Trace trace(String json, boolean store) {
+    public Trace trace(String json, boolean store, String patientId) {
         JsonNode root;
         try {
             root = objectMapper.readTree(json);
@@ -83,7 +87,7 @@ public class TraceService {
 
         // 2. The canonical FHIR Observation. Whatever shape the reading arrived in, everything
         //    downstream sees exactly this.
-        var observation = pulseObservations.observation(reading);
+        var observation = pulseObservations.observation(reading, patientId);
         steps.add(TraceStep.of("observation", messages.get("step.observation"), messages.get("actor.backend"),
                 "fhir", messages.get("explain.observation"), tree(pulseObservations.encode(observation))));
 
@@ -119,7 +123,7 @@ public class TraceService {
 
         // 5. and 6. Persistence, and reading back with AQL — only when explicitly asked for.
         if (store) {
-            storeAndQuery(composition, steps);
+            storeAndQuery(composition, steps, ehrResolver.ehrIdFor(patientId));
         }
 
         // 7. The way back, which is what makes the mapping a mapping rather than an importer.
@@ -175,11 +179,11 @@ public class TraceService {
         return Optional.empty();
     }
 
-    private void storeAndQuery(JsonNode composition, List<TraceStep> steps) {
+    private void storeAndQuery(JsonNode composition, List<TraceStep> steps, String ehrId) {
         String uid;
         long started = System.nanoTime();
         try {
-            uid = ehrbase.createComposition(properties.ehrId(), composition);
+            uid = ehrbase.createComposition(ehrId, composition);
         } catch (Exception e) {
             steps.add(TraceStep.failed("stored", messages.get("step.stored"), "EHRbase",
                     messages.get("explain.stored.short"), messages.get("fail.ehrbase", e.getMessage())));
@@ -189,14 +193,14 @@ public class TraceService {
 
         steps.add(TraceStep.of("stored", messages.get("step.stored"), "EHRbase", "openehr",
                 messages.get("explain.stored"), objectMapper.createObjectNode()
-                        .put("ehrId", properties.ehrId())
+                        .put("ehrId", ehrId)
                         .put("versionUid", uid))
-                .withCall("POST /rest/openehr/v1/ehr/%s/composition".formatted(properties.ehrId()), tookMs));
+                .withCall("POST /rest/openehr/v1/ehr/%s/composition".formatted(ehrId), tookMs));
 
         started = System.nanoTime();
         List<List<JsonNode>> rows;
         try {
-            rows = ehrbase.query(AQL, Map.of("ehrId", properties.ehrId()));
+            rows = ehrbase.query(AQL, Map.of("ehrId", ehrId));
         } catch (Exception e) {
             steps.add(TraceStep.failed("aql", messages.get("step.aql"), "EHRbase",
                     messages.get("explain.aql.short"), messages.get("fail.aql", e.getMessage())));

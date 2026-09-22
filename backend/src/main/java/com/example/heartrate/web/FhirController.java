@@ -2,6 +2,7 @@ package com.example.heartrate.web;
 
 import com.example.heartrate.fhir.PulseObservations;
 import com.example.heartrate.fhir.SampleReadings;
+import com.example.heartrate.patient.PatientDirectory;
 import com.example.heartrate.service.HeartRateService;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -29,19 +30,27 @@ public class FhirController {
     private final HeartRateService service;
     private final PulseObservations pulseObservations;
     private final SampleReadings sampleReadings;
+    private final PatientDirectory patients;
 
     public FhirController(
-            HeartRateService service, PulseObservations pulseObservations, SampleReadings sampleReadings) {
+            HeartRateService service,
+            PulseObservations pulseObservations,
+            SampleReadings sampleReadings,
+            PatientDirectory patients) {
         this.service = service;
         this.pulseObservations = pulseObservations;
         this.sampleReadings = sampleReadings;
+        this.patients = patients;
     }
 
     /** Ingests a vital-signs heart rate Observation from an external system. */
     @PostMapping(value = "/Observation", consumes = {FHIR_JSON, MediaType.APPLICATION_JSON_VALUE},
             produces = FHIR_JSON)
-    public ResponseEntity<String> create(@RequestBody String observationJson) {
-        var stored = service.record(pulseObservations.parseObservation(observationJson));
+    public ResponseEntity<String> create(
+            @RequestBody String observationJson,
+            @RequestParam(required = false) String patient) {
+        var stored = service.record(
+                pulseObservations.parseObservation(observationJson), patients.resolve(patient));
         return ResponseEntity.created(java.net.URI.create("Observation/" + stored.getIdElement().getIdPart()))
                 .contentType(MediaType.valueOf(FHIR_JSON))
                 .body(pulseObservations.encode(stored));
@@ -53,8 +62,10 @@ public class FhirController {
      */
     @PostMapping(value = "/Bundle", consumes = {FHIR_JSON, MediaType.APPLICATION_JSON_VALUE},
             produces = FHIR_JSON)
-    public ResponseEntity<String> importBundle(@RequestBody String bundleJson) {
-        var result = service.importJson(bundleJson);
+    public ResponseEntity<String> importBundle(
+            @RequestBody String bundleJson,
+            @RequestParam(required = false) String patient) {
+        var result = service.importJson(bundleJson, patients.resolve(patient));
         return ResponseEntity.status(result.imported() > 0 ? 201 : 200)
                 .contentType(MediaType.valueOf(FHIR_JSON))
                 .body(pulseObservations.encode(outcomeOf(result)));
@@ -93,10 +104,13 @@ public class FhirController {
      * would have to be regenerated to stay useful.
      */
     @GetMapping(value = "/Bundle/$sample", produces = FHIR_JSON)
-    public ResponseEntity<String> sample(@RequestParam(defaultValue = "30") int days) {
+    public ResponseEntity<String> sample(
+            @RequestParam(defaultValue = "30") int days,
+            @RequestParam(required = false) String patient) {
+        var patientId = patients.resolve(patient);
         var readings = sampleReadings.lastDays(Math.clamp(days, 1, 365));
         var bundle = pulseObservations.bundle(
-                readings.stream().map(pulseObservations::observation).toList());
+                readings.stream().map(reading -> pulseObservations.observation(reading, patientId)).toList());
         return ResponseEntity.ok()
                 .contentType(MediaType.valueOf(FHIR_JSON))
                 .body(pulseObservations.encode(bundle));
@@ -104,8 +118,10 @@ public class FhirController {
 
     /** Everything stored in the last {@code days} days, as a FHIR searchset Bundle. */
     @GetMapping(value = "/Observation", produces = FHIR_JSON)
-    public ResponseEntity<String> search(@RequestParam(defaultValue = "30") int days) {
-        var bundle = service.export(Math.clamp(days, 1, 365));
+    public ResponseEntity<String> search(
+            @RequestParam(defaultValue = "30") int days,
+            @RequestParam(required = false) String patient) {
+        var bundle = service.export(Math.clamp(days, 1, 365), patients.resolve(patient));
         return ResponseEntity.ok()
                 .contentType(MediaType.valueOf(FHIR_JSON))
                 .body(pulseObservations.encode(bundle));

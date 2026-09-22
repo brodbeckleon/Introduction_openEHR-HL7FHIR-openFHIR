@@ -1,8 +1,8 @@
 package com.example.heartrate.aql;
 
-import com.example.heartrate.config.HeartrateProperties;
 import com.example.heartrate.config.Messages;
 import com.example.heartrate.openehr.EhrbaseClient;
+import com.example.heartrate.patient.EhrResolver;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
@@ -29,22 +29,22 @@ public class AqlService {
     private static final int MAX_ROWS = 200;
 
     private final EhrbaseClient ehrbase;
-    private final HeartrateProperties properties;
     private final Messages messages;
+    private final EhrResolver ehrResolver;
     private final ObjectMapper objectMapper;
 
     public AqlService(
             EhrbaseClient ehrbase,
-            HeartrateProperties properties,
             Messages messages,
+            EhrResolver ehrResolver,
             ObjectMapper objectMapper) {
         this.ehrbase = ehrbase;
-        this.properties = properties;
+        this.ehrResolver = ehrResolver;
         this.messages = messages;
         this.objectMapper = objectMapper;
     }
 
-    public AqlResult run(String query) {
+    public AqlResult run(String query, String patientId) {
         var trimmed = query == null ? "" : query.strip();
         if (trimmed.isEmpty()) {
             return AqlResult.failed(messages.get("aql.empty"), 0);
@@ -56,9 +56,10 @@ public class AqlService {
         long started = System.nanoTime();
         JsonNode answer;
         try {
-            // $ehrId is filled in rather than demanded: the demo has one EHR, and making people
-            // paste a uuid before their first query would teach them nothing about AQL.
-            answer = ehrbase.queryRaw(trimmed, Map.of("ehrId", properties.ehrId()));
+            // $ehrId is filled in rather than demanded: making people paste a uuid before their
+            // first query would teach them nothing about AQL. Which uuid it is now depends on the
+            // patient the page is showing.
+            answer = ehrbase.queryRaw(trimmed, Map.of("ehrId", ehrResolver.ehrIdFor(patientId)));
         } catch (Exception e) {
             return AqlResult.failed(explain(e), millisSince(started));
         }

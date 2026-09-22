@@ -10,9 +10,11 @@ import type {
   TemplateView,
   Trace,
   TrafficEntry,
+  PatientSummary,
   TraceSample,
 } from './types';
 import { language } from './i18n.svelte';
+import { patient } from './patient.svelte';
 
 /** Calls to the Gradle backend. Vite proxies these to :18080 in development. */
 
@@ -23,6 +25,19 @@ import { language } from './i18n.svelte';
  */
 function headers(extra: Record<string, string> = {}): Record<string, string> {
   return { 'Accept-Language': language(), ...extra };
+}
+
+/**
+ * Names the patient a request is about.
+ *
+ * Clinical reads and writes are scoped to one record; the backend turns the id into an EHR id by
+ * asking openEHR. Before the directory has loaded there is nothing to send, and the backend then
+ * falls back to its configured default rather than failing.
+ */
+function withPatient(url: string): string {
+  const id = patient();
+  if (!id) return url;
+  return `${url}${url.includes('?') ? '&' : '?'}patient=${encodeURIComponent(id)}`;
 }
 
 /**
@@ -43,7 +58,7 @@ function failure(response: Response, what: string): Error {
 export async function fetchSeries(days = 30): Promise<HeartRateSeries> {
   // no-store because this is reloaded straight after a write: a cached copy would show the value
   // that was just corrected and look exactly like a correction that did not take.
-  const response = await fetch(`/api/heart-rate?days=${days}`, {
+  const response = await fetch(withPatient(`/api/heart-rate?days=${days}`), {
     cache: 'no-store',
     headers: headers(),
   });
@@ -74,7 +89,7 @@ export async function backendIsCurrent(): Promise<boolean> {
  * in and what did not.
  */
 export async function importFile(json: string): Promise<OperationOutcome> {
-  const response = await fetch('/fhir/Bundle', {
+  const response = await fetch(withPatient('/fhir/Bundle'), {
     method: 'POST',
     headers: headers({ 'Content-Type': 'application/json' }),
     body: json,
@@ -91,7 +106,7 @@ export async function importFile(json: string): Promise<OperationOutcome> {
  * call rather than checked in, so it cannot fall out of the chart's 30-day window.
  */
 export async function fetchSampleBundle(days = 30): Promise<string> {
-  const response = await fetch(`/fhir/Bundle/$sample?days=${days}`, {
+  const response = await fetch(withPatient(`/fhir/Bundle/$sample?days=${days}`), {
     cache: 'no-store',
     headers: headers(),
   });
@@ -101,7 +116,9 @@ export async function fetchSampleBundle(days = 30): Promise<string> {
 
 /** Fetches everything stored as a FHIR Bundle, for download. */
 export async function exportBundle(days = 30): Promise<string> {
-  const response = await fetch(`/fhir/Observation?days=${days}`, { headers: headers() });
+  const response = await fetch(withPatient(`/fhir/Observation?days=${days}`), {
+    headers: headers(),
+  });
   if (!response.ok) throw new Error(`Could not export (HTTP ${response.status})`);
   return response.text();
 }
@@ -111,7 +128,7 @@ export async function exportBundle(days = 30): Promise<string> {
  * unless `store` is set, in which case the composition really is written to EHRbase.
  */
 export async function runTrace(json: string, store = false): Promise<Trace> {
-  const response = await fetch(`/api/trace?store=${store}`, {
+  const response = await fetch(withPatient(`/api/trace?store=${store}`), {
     method: 'POST',
     headers: headers({ 'Content-Type': 'application/json' }),
     body: json,
@@ -144,7 +161,7 @@ export async function clearTraffic(): Promise<void> {
  * sends it here, so typed-in readings take exactly the path an external system's would.
  */
 export async function postObservation(observation: unknown): Promise<void> {
-  const response = await fetch('/fhir/Observation', {
+  const response = await fetch(withPatient('/fhir/Observation'), {
     method: 'POST',
     headers: headers({ 'Content-Type': 'application/fhir+json' }),
     body: JSON.stringify(observation),
@@ -162,7 +179,7 @@ export async function postObservation(observation: unknown): Promise<void> {
  * openEHR's revision history, not FHIR's — the two are not the same thing.
  */
 export async function fetchDayHistory(date: string): Promise<DayHistory> {
-  const response = await fetch(`/api/history?date=${date}`, {
+  const response = await fetch(withPatient(`/api/history?date=${date}`), {
     cache: 'no-store',
     headers: headers(),
   });
@@ -204,7 +221,7 @@ export async function fetchMappings(): Promise<MappingSource[]> {
 
 /** Runs one AQL query against the record. Read-only: AQL has no write operations. */
 export async function runAql(query: string): Promise<AqlResult> {
-  const response = await fetch('/api/aql', {
+  const response = await fetch(withPatient('/api/aql'), {
     method: 'POST',
     headers: headers({ 'Content-Type': 'text/plain' }),
     body: query,
@@ -222,7 +239,10 @@ export async function fetchAqlExamples(): Promise<AqlExample[]> {
 
 /** The operational template as a tree, marked with what the stored data actually uses. */
 export async function fetchTemplate(): Promise<TemplateView> {
-  const response = await fetch('/api/template', { cache: 'no-store', headers: headers() });
+  const response = await fetch(withPatient('/api/template'), {
+    cache: 'no-store',
+    headers: headers(),
+  });
   if (!response.ok) throw failure(response, 'The template explorer');
   return response.json() as Promise<TemplateView>;
 }
@@ -232,4 +252,32 @@ export async function fetchMappingRules(): Promise<MappingRule[]> {
   const response = await fetch('/api/mappings/rules', { cache: 'no-store', headers: headers() });
   if (!response.ok) throw failure(response, 'The mapping rules');
   return response.json() as Promise<MappingRule[]>;
+}
+
+/**
+ * The patients the backend knows, read out of the FHIR Patient searchset it projects.
+ *
+ * Nothing is stored behind these: each resource is built on request from the configured directory
+ * entry and the EHR id openEHR answers with, which is exactly why a name is all there is to show.
+ */
+export async function fetchPatients(): Promise<PatientSummary[]> {
+  const response = await fetch('/fhir/Patient', { cache: 'no-store', headers: headers() });
+  if (!response.ok) throw failure(response, 'Loading the patients');
+  const bundle = (await response.json()) as {
+    entry?: { resource?: Record<string, unknown> }[];
+  };
+  return (bundle.entry ?? []).flatMap((entry) => {
+    const resource = entry.resource;
+    if (!resource || typeof resource.id !== 'string') return [];
+    const names = resource.name as { text?: string }[] | undefined;
+    const identifiers = resource.identifier as { system?: string; value?: string }[] | undefined;
+    const ehr = identifiers?.find((one) => one.system === 'urn:heartrate-monitor:ehr-id')?.value;
+    return [
+      {
+        id: resource.id,
+        name: names?.[0]?.text ?? resource.id,
+        ehrId: ehr ? ehr.replace(/^urn:uuid:/, '') : null,
+      },
+    ];
+  });
 }

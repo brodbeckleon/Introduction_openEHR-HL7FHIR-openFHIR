@@ -424,10 +424,15 @@ curl -u ehrbase-user:SuperSecretPassword \
 | `POST` | `/api/traffic/clear` | Empties that buffer |
 | `GET` | `/api/traffic?since=0` | Calls made to openFHIR and EHRbase, for the traffic console |
 | `GET` | `/api/about` | What this build can do; a 404 tells the page the backend is older than it is |
+| `GET` | `/fhir/Patient` | The patients this instance knows, projected from the directory and their EHR ids |
+| `GET` | `/fhir/Patient/{id}` | One of them; this is what `Observation.subject` now resolves to |
 
 ## Notes
 
-- The demo writes to one fixed EHR (`heartrate.ehr-id`) so restarts keep reading the same record.
+- Each patient in `heartrate.patients` has an EHR of its own. The id is not configured: it is
+  looked up from `EHR_STATUS.subject` and created on first use, so the record survives restarts
+  without this service remembering a uuid. `heartrate.default-patient` is who a request is about
+  when it names none.
 - The operational template was derived from Better's *NEWS2 Encounter Parent* template, reduced to
   the single pulse observation.
 - The open-source edition of openFHIR has no authentication; EHRbase runs with basic auth. Neither

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
 import com.example.heartrate.config.HeartrateProperties;
+import java.util.List;
 import com.example.heartrate.config.TestMessages;
 import org.junit.jupiter.api.Test;
 
@@ -13,7 +14,7 @@ class MappingRulesTest {
             new HeartrateProperties(
                     new HeartrateProperties.Ehrbase("http://localhost", "u", "p"),
                     new HeartrateProperties.OpenFhir("http://localhost"),
-                    "heartrate_monitor.v1", "ehr-id", "demo-patient", "composer", "CH",
+                    "heartrate_monitor.v1", "demo-patient", List.of(), "composer", "CH",
                     "../openfhir-bootstrap"),
             TestMessages.create());
 

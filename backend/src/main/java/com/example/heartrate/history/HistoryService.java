@@ -1,7 +1,7 @@
 package com.example.heartrate.history;
 
-import com.example.heartrate.config.HeartrateProperties;
 import com.example.heartrate.openehr.EhrbaseClient;
+import com.example.heartrate.patient.EhrResolver;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -37,16 +37,17 @@ public class HistoryService {
             """.formatted(PULSE_EVENT, PULSE_EVENT);
 
     private final EhrbaseClient ehrbase;
-    private final HeartrateProperties properties;
+    private final EhrResolver ehrResolver;
 
-    public HistoryService(EhrbaseClient ehrbase, HeartrateProperties properties) {
+    public HistoryService(EhrbaseClient ehrbase, EhrResolver ehrResolver) {
         this.ehrbase = ehrbase;
-        this.properties = properties;
+        this.ehrResolver = ehrResolver;
     }
 
-    public DayHistory of(LocalDate day) {
+    public DayHistory of(LocalDate day, String patientId) {
+        var ehrId = ehrResolver.ehrIdFor(patientId);
         var parameters = Map.<String, Object>of(
-                "ehrId", properties.ehrId(),
+                "ehrId", ehrId,
                 "from", startOfDay(day),
                 "to", startOfDay(day.plusDays(1)));
 
@@ -62,17 +63,17 @@ public class HistoryService {
                 .filter(row -> !row.isEmpty() && !row.get(0).isNull())
                 .map(row -> objectUid(row.get(0).asText()))
                 .distinct()
-                .map(this::historyOf)
+                .map(objectUid -> historyOf(objectUid, ehrId))
                 .filter(history -> !history.versions().isEmpty())
                 .toList();
 
         return new DayHistory(day, histories);
     }
 
-    private DayHistory.CompositionHistory historyOf(String objectUid) {
+    private DayHistory.CompositionHistory historyOf(String objectUid, String ehrId) {
         JsonNode history;
         try {
-            history = ehrbase.revisionHistory(properties.ehrId(), objectUid);
+            history = ehrbase.revisionHistory(ehrId, objectUid);
         } catch (Exception e) {
             log.warn("Could not read the revision history of {}: {}", objectUid, e.getMessage());
             return new DayHistory.CompositionHistory(objectUid, List.of());
@@ -96,7 +97,7 @@ public class HistoryService {
                     audit.path("time_committed").path("value").asText(null),
                     audit.path("change_type").path("value").asText(null),
                     committerOf(audit),
-                    bpmAt(objectUid, versionUid),
+                    bpmAt(objectUid, versionUid, ehrId),
                     false));
         }
 
@@ -112,9 +113,9 @@ public class HistoryService {
     }
 
     /** The rate as one specific version recorded it — the point of the whole exercise. */
-    private Double bpmAt(String objectUid, String versionUid) {
+    private Double bpmAt(String objectUid, String versionUid, String ehrId) {
         try {
-            var version = ehrbase.versionAt(properties.ehrId(), objectUid, versionUid);
+            var version = ehrbase.versionAt(ehrId, objectUid, versionUid);
             var magnitude = findRate(version == null ? null : version.path("data"));
             return magnitude == null ? null : magnitude;
         } catch (Exception e) {

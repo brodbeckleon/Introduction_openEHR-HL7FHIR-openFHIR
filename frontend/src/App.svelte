@@ -7,6 +7,7 @@
   import MappingsTab from './lib/MappingsTab.svelte';
   import PipelineInspector from './lib/PipelineInspector.svelte';
   import LanguageSwitch from './lib/LanguageSwitch.svelte';
+  import PatientSwitch from './lib/PatientSwitch.svelte';
   import StandardsDiagram from './lib/StandardsDiagram.svelte';
   import TemplateExplorer from './lib/TemplateExplorer.svelte';
   import Tour from './lib/Tour.svelte';
@@ -15,10 +16,12 @@
   import {
     backendIsCurrent,
     exportBundle,
+    fetchPatients,
     fetchSampleBundle,
     fetchSeries,
     importFile,
   } from './lib/api';
+  import { patient, rememberPatients } from './lib/patient.svelte';
   import { locale, t } from './lib/i18n.svelte';
   import type {
     DailyRestingHeartRate,
@@ -106,9 +109,24 @@
   let staleBackend = $state(false);
 
   $effect(() => {
+    // Read the patient here rather than leaving it to the fetch: that makes the dependency explicit,
+    // so switching records reloads the chart instead of relying on where the read happens to land.
+    patient();
     void load();
     void (async () => {
       staleBackend = !(await backendIsCurrent());
+    })();
+  });
+
+  // The directory is loaded once. A backend that predates it answers 404, and the switch simply
+  // stays hidden — every request then omits the parameter and gets the configured default.
+  $effect(() => {
+    void (async () => {
+      try {
+        rememberPatients(await fetchPatients());
+      } catch {
+        // Nothing to switch between; the default patient still works.
+      }
     })();
   });
 
@@ -205,8 +223,13 @@
     return () => window.removeEventListener('hashchange', follow);
   });
 
-  /** The backend text was fetched in the old language, so the whole view is rebuilt. */
-  function relabel(): void {
+  /**
+   * Rebuilds every view that holds fetched data.
+   *
+   * <p>Both switches need this for the same reason: the backend text was fetched in the old
+   * language, or the data belongs to the record that is no longer being shown.
+   */
+  function reloadAll(): void {
     void load();
     reloadKey += 1;
   }
@@ -233,7 +256,8 @@
           <Icon name="compass" />
           <span>{tourDone ? t('tour.restart') : t('tour.start')}</span>
         </button>
-        <LanguageSwitch onchange={relabel} />
+        <PatientSwitch onchange={reloadAll} />
+        <LanguageSwitch onchange={reloadAll} />
       </div>
     </div>
     <p>{t('app.lede')}</p>

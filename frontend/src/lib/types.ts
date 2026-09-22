@@ -226,3 +226,15 @@ export interface MappingRule {
   fromLine: number;
   toLine: number;
 }
+
+/**
+ * One patient the backend knows, flattened out of the FHIR Patient it projects.
+ *
+ * `ehrId` is the identifier that ties the resource to its openEHR record — the whole point of the
+ * projection, and worth showing rather than hiding.
+ */
+export interface PatientSummary {
+  id: string;
+  name: string;
+  ehrId: string | null;
+}

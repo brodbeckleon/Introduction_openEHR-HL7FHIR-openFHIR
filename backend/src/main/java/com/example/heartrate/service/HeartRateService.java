@@ -8,6 +8,7 @@ import com.example.heartrate.model.HeartRateSeries;
 import com.example.heartrate.model.Reading;
 import com.example.heartrate.openehr.EhrbaseClient;
 import com.example.heartrate.openfhir.OpenFhirClient;
+import com.example.heartrate.patient.EhrResolver;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
@@ -82,6 +83,7 @@ public class HeartRateService {
     private final PulseObservations pulseObservations;
     private final HeartRateExtractor extractor;
     private final HeartrateProperties properties;
+    private final EhrResolver ehrResolver;
     private final ObjectMapper objectMapper;
 
     public HeartRateService(
@@ -90,17 +92,20 @@ public class HeartRateService {
             PulseObservations pulseObservations,
             HeartRateExtractor extractor,
             HeartrateProperties properties,
+            EhrResolver ehrResolver,
             ObjectMapper objectMapper) {
         this.ehrbase = ehrbase;
         this.openFhir = openFhir;
         this.pulseObservations = pulseObservations;
         this.extractor = extractor;
         this.properties = properties;
+        this.ehrResolver = ehrResolver;
         this.objectMapper = objectMapper;
     }
 
     /** Stores an Observation, which is how everything gets into the CDR. */
-    public Observation record(Observation observation) {
+    public Observation record(Observation observation, String patientId) {
+        var ehrId = ehrResolver.ehrIdFor(patientId);
         // A client is entitled to post an Observation without an id and let the server assign one.
         // Without this the Bundle's fullUrl and the 201's Location header both read "urn:uuid:null".
         if (!observation.hasIdElement() || observation.getIdElement().getIdPart() == null) {
@@ -115,16 +120,16 @@ public class HeartRateService {
         // A second reading for a day that already has one is a correction, not a second fact. openEHR
         // expresses that by versioning the composition rather than adding another one — and the old
         // version stays in the record, which is the whole point of a clinical data repository.
-        var existing = measuredAt(observation).flatMap(this::latestVersionOn);
+        var existing = measuredAt(observation).flatMap(at -> latestVersionOn(at, ehrId));
         String uid;
         if (existing.isPresent()) {
             var precedingVersion = existing.get();
             uid = ehrbase.updateComposition(
-                    properties.ehrId(), versionedObjectUid(precedingVersion), precedingVersion, composition);
+                    ehrId, versionedObjectUid(precedingVersion), precedingVersion, composition);
             log.debug("Corrected resting heart rate to {}: {} is now {}",
                     observation.getValueQuantity().getValue(), precedingVersion, uid);
         } else {
-            uid = ehrbase.createComposition(properties.ehrId(), composition);
+            uid = ehrbase.createComposition(ehrId, composition);
             log.debug("Stored resting heart rate {} as composition {}",
                     observation.getValueQuantity().getValue(), uid);
         }
@@ -140,10 +145,10 @@ public class HeartRateService {
     }
 
     /** The most recently committed composition covering the day of {@code measuredAt}, if any. */
-    private Optional<String> latestVersionOn(OffsetDateTime measuredAt) {
+    private Optional<String> latestVersionOn(OffsetDateTime measuredAt, String ehrId) {
         var day = measuredAt.atZoneSameInstant(ZoneOffset.UTC).toLocalDate();
         var parameters = Map.of(
-                "ehrId", (Object) properties.ehrId(),
+                "ehrId", (Object) ehrId,
                 "from", startOfDay(day),
                 "to", startOfDay(day.plusDays(1)));
 
@@ -182,7 +187,7 @@ public class HeartRateService {
     public record ImportResult(int imported, List<HeartRateExtractor.Rejection> rejections) {}
 
     /** Imports a FHIR Bundle, keeping the entries that are usable resting heart rates. */
-    public ImportResult importJson(String json) {
+    public ImportResult importJson(String json, String patientId) {
         Bundle bundle;
         try {
             bundle = pulseObservations.parse(json, Bundle.class);
@@ -190,14 +195,15 @@ public class HeartRateService {
             throw new IllegalArgumentException("That is not a FHIR Bundle.", e);
         }
         var extraction = extractor.fromBundle(bundle);
-        return store(extraction.readings(), new ArrayList<>(extraction.rejections()));
+        return store(extraction.readings(), new ArrayList<>(extraction.rejections()), patientId);
     }
 
-    private ImportResult store(List<Reading> readings, List<HeartRateExtractor.Rejection> failures) {
+    private ImportResult store(
+            List<Reading> readings, List<HeartRateExtractor.Rejection> failures, String patientId) {
         int imported = 0;
         for (var reading : readings) {
             try {
-                record(pulseObservations.observation(reading));
+                record(pulseObservations.observation(reading, patientId), patientId);
                 imported++;
             } catch (Exception e) {
                 log.warn("Could not import a reading: {}", e.getMessage());
@@ -209,11 +215,11 @@ public class HeartRateService {
     }
 
     /** The daily resting heart rates of the last {@code days} days. */
-    public HeartRateSeries series(int days) {
+    public HeartRateSeries series(int days, String patientId) {
         var to = LocalDate.now(ZoneOffset.UTC);
         var from = to.minusDays(days - 1L);
 
-        var rows = ehrbase.query(READINGS_AQL, queryParameters(from));
+        var rows = ehrbase.query(READINGS_AQL, queryParameters(from, ehrResolver.ehrIdFor(patientId)));
         return new HeartRateSeries(from, to, newestPerDay(rows));
     }
 
@@ -253,16 +259,17 @@ public class HeartRateService {
      * Exports the stored readings as a FHIR searchset Bundle. Each composition goes back through
      * openFHIR, so the outgoing FHIR is produced by the same mapping definition as the incoming FHIR.
      */
-    public Bundle export(int days) {
+    public Bundle export(int days, String patientId) {
         var from = LocalDate.now(ZoneOffset.UTC).minusDays(days - 1L);
-        var rows = ehrbase.query(COMPOSITIONS_AQL, queryParameters(from));
+        var rows = ehrbase.query(
+                COMPOSITIONS_AQL, queryParameters(from, ehrResolver.ehrIdFor(patientId)));
 
         var observations = new ArrayList<Observation>();
         for (var row : rows) {
             if (row.isEmpty() || row.get(0).isNull()) {
                 continue;
             }
-            observations.addAll(mapToObservations(row.get(0)));
+            observations.addAll(mapToObservations(row.get(0), patientId));
         }
 
         var bundle = pulseObservations.bundle(observations);
@@ -271,7 +278,7 @@ public class HeartRateService {
         return bundle;
     }
 
-    private List<Observation> mapToObservations(JsonNode composition) {
+    private List<Observation> mapToObservations(JsonNode composition, String patientId) {
         JsonNode mapped;
         try {
             mapped = openFhir.toFhir(objectMapper.writeValueAsString(composition), properties.templateId());
@@ -296,16 +303,16 @@ public class HeartRateService {
                     observation.setId(id.substring(1));
                 }
                 observation.setSubject(
-                        new org.hl7.fhir.r4.model.Reference("Patient/" + properties.patientId()));
+                        new org.hl7.fhir.r4.model.Reference("Patient/" + patientId));
                 observations.add(observation);
             }
         }
         return observations;
     }
 
-    private Map<String, Object> queryParameters(LocalDate from) {
+    private Map<String, Object> queryParameters(LocalDate from, String ehrId) {
         return Map.of(
-                "ehrId", properties.ehrId(),
+                "ehrId", ehrId,
                 "from", startOfDay(from));
     }
 

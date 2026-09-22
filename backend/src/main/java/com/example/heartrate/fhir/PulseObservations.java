@@ -1,7 +1,6 @@
 package com.example.heartrate.fhir;
 
 import ca.uhn.fhir.context.FhirContext;
-import com.example.heartrate.config.HeartrateProperties;
 import com.example.heartrate.model.Reading;
 import java.util.Date;
 import java.util.List;
@@ -33,14 +32,16 @@ public class PulseObservations {
     public static final String PER_MINUTE = "/min";
 
     private final FhirContext fhirContext;
-    private final HeartrateProperties properties;
 
-    public PulseObservations(FhirContext fhirContext, HeartrateProperties properties) {
+    public PulseObservations(FhirContext fhirContext) {
         this.fhirContext = fhirContext;
-        this.properties = properties;
     }
 
-    public Observation observation(Reading reading) {
+    /**
+     * @param patientId who the reading is about; it becomes {@code Observation.subject} and is what
+     *     ties the resource to an openEHR record once {@code EhrResolver} looks the EHR up
+     */
+    public Observation observation(Reading reading, String patientId) {
         var observation = new Observation();
         observation.setId(UUID.randomUUID().toString());
         observation.setStatus(Observation.ObservationStatus.FINAL);
@@ -52,7 +53,7 @@ public class PulseObservations {
                 .setSystem(LOINC)
                 .setCode(RESTING_HEART_RATE_LOINC)
                 .setDisplay("Heart rate --resting")));
-        observation.setSubject(new Reference("Patient/" + properties.patientId()));
+        observation.setSubject(new Reference("Patient/" + patientId));
         observation.setEffective(new DateTimeType(Date.from(reading.measuredAt().toInstant())));
         observation.setValue(new Quantity()
                 .setValue(reading.beatsPerMinute())

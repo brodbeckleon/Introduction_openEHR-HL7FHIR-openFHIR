@@ -134,6 +134,8 @@ const EN: Dictionary = {
     'Every value in at least one row is null. In AQL a path that does not exist is not an error: the query matches the observations and finds nothing at that path. This is the failure mode to know about.',
 
   'lang.label': 'Language',
+  'patient.label': 'Patient',
+  'patient.ehr': 'The openEHR record this patient\u2019s readings are stored in',
 
   'stale.title': 'The backend is running an older build than this page.',
   'stale.body':
@@ -405,6 +407,8 @@ const DE: Dictionary = {
     'In mindestens einer Zeile ist jeder Wert null. Ein Pfad, den es nicht gibt, ist in AQL kein Fehler: die Abfrage trifft die Observations und findet an dieser Stelle nichts. Das ist der Fehlermodus, den man kennen sollte.',
 
   'lang.label': 'Sprache',
+  'patient.label': 'Patient',
+  'patient.ehr': 'Der openEHR-Record, in dem die Messwerte dieses Patienten liegen',
 
   'stale.title': 'Das Backend läuft mit einem älteren Stand als diese Seite.',
   'stale.body':
