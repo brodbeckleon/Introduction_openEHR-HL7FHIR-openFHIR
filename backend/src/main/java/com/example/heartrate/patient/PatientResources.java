@@ -3,6 +3,7 @@ package com.example.heartrate.patient;
 import com.example.heartrate.config.HeartrateProperties;
 import java.time.ZoneOffset;
 import java.util.Date;
+import org.hl7.fhir.r4.model.Enumerations;
 import org.hl7.fhir.r4.model.Identifier;
 import org.hl7.fhir.r4.model.Patient;
 import org.springframework.stereotype.Component;
@@ -37,6 +38,17 @@ public class PatientResources {
         }
         if (patient.birthDate() != null) {
             resource.setBirthDate(Date.from(patient.birthDate().atStartOfDay(ZoneOffset.UTC).toInstant()));
+        }
+        if (patient.gender() != null) {
+            resource.setGender(Enumerations.AdministrativeGender.fromCode(patient.gender()));
+        }
+        var address = patient.address();
+        if (address != null) {
+            resource.addAddress()
+                    .addLine(address.line())
+                    .setPostalCode(address.postalCode())
+                    .setCity(address.city())
+                    .setCountry(address.country());
         }
         return resource;
     }

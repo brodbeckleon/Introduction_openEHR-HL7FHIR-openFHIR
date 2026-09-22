@@ -1,10 +1,7 @@
 package com.example.heartrate.web;
 
 import com.example.heartrate.fhir.PulseObservations;
-import com.example.heartrate.patient.EhrResolver;
 import com.example.heartrate.patient.PatientDirectory;
-import com.example.heartrate.patient.PatientResources;
-import java.util.List;
 import org.hl7.fhir.r4.model.Bundle;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -16,9 +13,9 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * The patients this instance knows, as FHIR.
  *
- * <p>Nothing is stored: each resource is projected from the configured directory entry and the EHR
- * id openEHR answers with. That is enough to make {@code Observation.subject} resolve — it used to
- * point at a Patient that existed nowhere — and it is deliberately the smallest thing that does so.
+ * <p>These come from the FHIR store, which is where a patient's details live. This endpoint stays
+ * here rather than sending clients straight to that server because the roster is this app's — the
+ * store would happily answer with patients this demo knows nothing about.
  */
 @RestController
 @RequestMapping("/fhir/Patient")
@@ -27,18 +24,10 @@ public class PatientController {
     private static final String FHIR_JSON = "application/fhir+json";
 
     private final PatientDirectory directory;
-    private final EhrResolver ehrResolver;
-    private final PatientResources resources;
     private final PulseObservations fhir;
 
-    public PatientController(
-            PatientDirectory directory,
-            EhrResolver ehrResolver,
-            PatientResources resources,
-            PulseObservations fhir) {
+    public PatientController(PatientDirectory directory, PulseObservations fhir) {
         this.directory = directory;
-        this.ehrResolver = ehrResolver;
-        this.resources = resources;
         this.fhir = fhir;
     }
 
@@ -46,9 +35,7 @@ public class PatientController {
     public ResponseEntity<String> search() {
         var bundle = new Bundle();
         bundle.setType(Bundle.BundleType.SEARCHSET);
-        List<org.hl7.fhir.r4.model.Patient> all = directory.all().stream()
-                .map(patient -> resources.toFhir(patient, ehrResolver.ehrIdFor(patient.id())))
-                .toList();
+        var all = directory.all();
         all.forEach(patient -> bundle.addEntry().setResource(patient));
         bundle.setTotal(all.size());
         return ResponseEntity.ok()
@@ -58,9 +45,9 @@ public class PatientController {
 
     @GetMapping(value = "/{id}", produces = FHIR_JSON)
     public ResponseEntity<String> read(@PathVariable String id) {
-        var patient = directory.byId(id);
+        // Through the directory, so an id outside the roster is a 404 here even when the store has it.
         return ResponseEntity.ok()
                 .contentType(MediaType.valueOf(FHIR_JSON))
-                .body(fhir.encode(resources.toFhir(patient, ehrResolver.ehrIdFor(patient.id()))));
+                .body(fhir.encode(directory.byId(directory.resolve(id))));
     }
 }

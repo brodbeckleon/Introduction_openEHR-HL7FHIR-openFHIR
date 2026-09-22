@@ -1,0 +1,20 @@
+server:
+  port: 18083
+
+spring:
+  application:
+    name: fhir-store
+  datasource:
+    url: jdbc:postgresql://localhost:18084/fhirstore
+    username: fhirstore
+    password: fhirstore
+  jpa:
+    hibernate:
+      # One table, created on first start. A demo has nothing to migrate, and a schema file would be
+      # one more thing to keep in step with the entity for no gain.
+      ddl-auto: update
+    open-in-view: false
+
+logging:
+  level:
+    com.example.fhirstore: INFO

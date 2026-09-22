@@ -18,13 +18,27 @@ heartrate:
   default-patient: demo-patient
   # Each patient gets an EHR of its own. The id is the only part openEHR stores — it goes into
   # EHR_STATUS.subject, which is how the EHR is found again after a restart.
+  # Seeded into the FHIR store on first start. Only `id` ever reaches openEHR; everything else
+  # here is what EHR_STATUS has no room for, which is the reason the FHIR store exists at all.
   patients:
     - id: demo-patient
       name: Demo Patient
       birth-date: 1985-03-12
+      gender: female
+      address:
+        line: Kramgasse 49
+        postal-code: "3011"
+        city: Bern
+        country: CH
     - id: second-patient
       name: Second Patient
       birth-date: 1971-11-02
+      gender: male
+      address:
+        line: Bahnhofstrasse 12
+        postal-code: "8001"
+        city: Zürich
+        country: CH
   composer-name: Heart rate monitor
   territory: CH
   # Relative to the working directory of `./gradlew bootRun`, i.e. backend/.
@@ -35,6 +49,8 @@ heartrate:
     password: SuperSecretPassword
   openfhir:
     base-url: http://localhost:18082
+  fhir-store:
+    base-url: http://localhost:18083
 
 logging:
   level:

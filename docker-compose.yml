@@ -87,6 +87,46 @@ services:
       # Operational template + FHIR Connect model/context mappings are picked up on boot.
       - ./openfhir-bootstrap:/app/bootstrap:ro
 
+  # The administrative half of the record. Separate from ehrdb on purpose: two stores, each with
+  # its own schema and lifecycle, is the arrangement this app is here to show — not one database
+  # with a second set of tables in it.
+  fhirdb:
+    image: postgres:16
+    container_name: hrm-fhirdb
+    environment:
+      POSTGRES_DB: fhirstore
+      POSTGRES_USER: fhirstore
+      POSTGRES_PASSWORD: fhirstore
+    volumes:
+      - fhirdb-data:/var/lib/postgresql/data
+    ports:
+      # Published so `./gradlew bootRun` in fhir-server/ reaches the same database the container does.
+      - "18084:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fhirstore"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Patients, practitioners, organisations — everything openEHR's EHR_STATUS has no room for.
+  # It holds no clinical data: readings stay openEHR compositions in EHRbase.
+  fhir-server:
+    build: ./fhir-server
+    container_name: hrm-fhir-server
+    depends_on:
+      fhirdb:
+        condition: service_healthy
+    ports:
+      - "18083:18083"
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:postgresql://fhirdb:5432/fhirstore"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:18083/fhir/metadata"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
   backend:
     build:
       # The root, not backend/: the image needs openfhir-bootstrap/ as well.
@@ -130,5 +170,6 @@ services:
 
 volumes:
   ehrdb-data:
+  fhirdb-data:
   mongo-data:
   frontend-node-modules:

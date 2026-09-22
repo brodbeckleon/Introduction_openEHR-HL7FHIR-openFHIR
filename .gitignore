@@ -26,8 +26,11 @@ replay_pid*
 # Gradle
 backend/.gradle/
 backend/build/
+fhir-server/.gradle/
+fhir-server/build/
 # The wrapper jar must be committed, despite the *.jar rule above.
 !backend/gradle/wrapper/gradle-wrapper.jar
+!fhir-server/gradle/wrapper/gradle-wrapper.jar
 
 # Node / Vite
 frontend/node_modules/

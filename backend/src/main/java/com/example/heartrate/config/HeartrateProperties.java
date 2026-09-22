@@ -11,6 +11,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record HeartrateProperties(
         Ehrbase ehrbase,
         OpenFhir openfhir,
+        /** The FHIR server holding the administrative half of the record. */
+        FhirStore fhirStore,
         /** Template the compositions are built against; must match the .opt shipped to both servers. */
         String templateId,
         /** The patient a request is about when it names none. */
@@ -33,13 +35,16 @@ public record HeartrateProperties(
 
     public record OpenFhir(String baseUrl) {}
 
+    public record FhirStore(String baseUrl) {}
+
     /**
-     * A demo patient.
+     * A demo patient, as this instance seeds it into the FHIR store on first start.
      *
-     * <p>openEHR anchors the record on nothing more than the id — that is what
-     * {@code EHR_STATUS.subject} holds. The name and birth date have no home on the openEHR side of
-     * this app and exist only to give the projected FHIR Patient something to show, which is
-     * precisely the gap a real FHIR store would fill.
+     * <p>Only the id reaches openEHR — that is all {@code EHR_STATUS.subject} holds. Everything
+     * below it is what the FHIR store exists for: a record openEHR has nowhere to put.
      */
-    public record Patient(String id, String name, LocalDate birthDate) {}
+    public record Patient(
+            String id, String name, LocalDate birthDate, String gender, Address address) {}
+
+    public record Address(String line, String postalCode, String city, String country) {}
 }
