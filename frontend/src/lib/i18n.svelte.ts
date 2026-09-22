@@ -136,6 +136,10 @@ const EN: Dictionary = {
   'tour.stores.title': 'Where the rest of it lives',
   'tour.stores.body':
     'The last step showed openEHR keeping only what its archetype models. The patient is the same story: EHR_STATUS anchors a record on an identifier and has room for neither a name nor an address. So there is a second store \u2014 an ordinary FHIR server \u2014 and a patient record is assembled from both. One identifier joins them, and stopping either one leaves the other working. That is not a workaround; it is what having two models actually costs, and what it buys.',
+  'diagram.open.fhir': 'Open the pipeline inspector, where the FHIR Observation is shown',
+  'diagram.open.openfhir': 'Open the mappings \u2014 the FHIR Connect rules openFHIR executes',
+  'diagram.open.openehr':
+    'Open the template explorer \u2014 the openEHR model the record is validated against',
   'tab.record': 'Two stores',
   'record.title': 'One record, two stores',
   'record.lede':
@@ -427,6 +431,11 @@ const DE: Dictionary = {
   'tour.stores.title': 'Wo der Rest liegt',
   'tour.stores.body':
     'Der letzte Schritt hat gezeigt, dass openEHR nur beh\u00e4lt, was sein Archetyp modelliert. Beim Patienten ist es dieselbe Geschichte: EHR_STATUS verankert einen Record an einer Kennung und hat weder f\u00fcr einen Namen noch f\u00fcr eine Adresse Platz. Also gibt es einen zweiten Speicher \u2014 einen gew\u00f6hnlichen FHIR-Server \u2014 und ein Patientenrecord wird aus beiden zusammengesetzt. Eine einzige Kennung verbindet sie, und f\u00e4llt einer aus, arbeitet der andere weiter. Das ist kein Notbehelf, sondern der Preis und der Gewinn zweier Modelle.',
+  'diagram.open.fhir': 'Pipeline-Inspector \u00f6ffnen, wo die FHIR-Observation zu sehen ist',
+  'diagram.open.openfhir':
+    'Mappings \u00f6ffnen \u2014 die FHIR-Connect-Regeln, die openFHIR ausf\u00fchrt',
+  'diagram.open.openehr':
+    'Template-Explorer \u00f6ffnen \u2014 das openEHR-Modell, gegen das validiert wird',
   'tab.record': 'Zwei Speicher',
   'record.title': 'Ein Record, zwei Speicher',
   'record.lede':

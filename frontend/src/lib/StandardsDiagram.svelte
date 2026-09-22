@@ -9,21 +9,43 @@
    * picture into a position indicator.
    */
 
+  type System = 'fhir' | 'openfhir' | 'openehr';
+
   interface Props {
     /** Lights up one box — the system responsible for the stage being looked at. */
-    active?: 'fhir' | 'openfhir' | 'openehr' | null;
+    active?: System | null;
     /** Trims the captions for use above the inspector, where the detail is on screen anyway. */
     compact?: boolean;
+    /**
+     * Makes the boxes selectable. Given, each one opens the tab where that standard's own artefact
+     * can be read: the Observation, the mappings, the template. Left out, the diagram stays a
+     * picture — which is what it should be anywhere there is nowhere to go.
+     */
+    onselect?: (system: System) => void;
   }
 
-  const { active = null, compact = false }: Props = $props();
+  const { active = null, compact = false, onselect }: Props = $props();
 
   /** Captions are one string with | between the lines, so a translation can rebalance them. */
   const caption = (key: string): string[] => t(key).split('|');
+
+  // A <g> carrying role="button" is reachable and clickable, but unlike a real button it gets no
+  // keyboard activation for free.
+  function activate(system: System, event: KeyboardEvent): void {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onselect?.(system);
+    }
+  }
 </script>
 
 <figure class="diagram" class:compact>
-  <svg viewBox="0 0 900 {compact ? 152 : 232}" role="img" xmlns="http://www.w3.org/2000/svg">
+  <svg
+    viewBox="0 0 900 {compact ? 152 : 232}"
+    role={onselect ? 'group' : 'img'}
+    aria-label={onselect ? t('diagram.alt') : undefined}
+    xmlns="http://www.w3.org/2000/svg"
+  >
     <title>{t('diagram.alt')}</title>
 
     <defs>
@@ -52,7 +74,20 @@
     </defs>
 
     <!-- Exchange -->
-    <g class="node fhir" class:lit={active === 'fhir'}>
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+    <!-- The role is only "button" when onselect is given, which the linter cannot evaluate; with
+         it, role + tabindex + Enter/Space is the ARIA pattern for a custom button. -->
+    <g
+      class="node fhir"
+      class:lit={active === 'fhir'}
+      class:selectable={onselect}
+      role={onselect ? 'button' : undefined}
+      tabindex={onselect ? 0 : undefined}
+      aria-label={onselect ? t('diagram.open.fhir') : undefined}
+      onclick={() => onselect?.('fhir')}
+      onkeydown={(event) => activate('fhir', event)}
+    >
+      {#if onselect}<title>{t('diagram.open.fhir')}</title>{/if}
       <rect x="8" y="44" width="236" height="96" rx="10" />
       <text class="name" x="28" y="76">HL7 FHIR</text>
       <text class="role" x="28" y="98">{t('diagram.fhir.role')}</text>
@@ -60,7 +95,20 @@
     </g>
 
     <!-- Translation -->
-    <g class="node openfhir" class:lit={active === 'openfhir'}>
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+    <!-- The role is only "button" when onselect is given, which the linter cannot evaluate; with
+         it, role + tabindex + Enter/Space is the ARIA pattern for a custom button. -->
+    <g
+      class="node openfhir"
+      class:lit={active === 'openfhir'}
+      class:selectable={onselect}
+      role={onselect ? 'button' : undefined}
+      tabindex={onselect ? 0 : undefined}
+      aria-label={onselect ? t('diagram.open.openfhir') : undefined}
+      onclick={() => onselect?.('openfhir')}
+      onkeydown={(event) => activate('openfhir', event)}
+    >
+      {#if onselect}<title>{t('diagram.open.openfhir')}</title>{/if}
       <rect x="332" y="44" width="236" height="96" rx="10" />
       <text class="name" x="352" y="76">openFHIR</text>
       <text class="role" x="352" y="98">{t('diagram.openfhir.role')}</text>
@@ -68,7 +116,20 @@
     </g>
 
     <!-- Persistence -->
-    <g class="node openehr" class:lit={active === 'openehr'}>
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+    <!-- The role is only "button" when onselect is given, which the linter cannot evaluate; with
+         it, role + tabindex + Enter/Space is the ARIA pattern for a custom button. -->
+    <g
+      class="node openehr"
+      class:lit={active === 'openehr'}
+      class:selectable={onselect}
+      role={onselect ? 'button' : undefined}
+      tabindex={onselect ? 0 : undefined}
+      aria-label={onselect ? t('diagram.open.openehr') : undefined}
+      onclick={() => onselect?.('openehr')}
+      onkeydown={(event) => activate('openehr', event)}
+    >
+      {#if onselect}<title>{t('diagram.open.openehr')}</title>{/if}
       <rect x="656" y="44" width="236" height="96" rx="10" />
       <text class="name" x="676" y="76">openEHR</text>
       <text class="role" x="676" y="98">{t('diagram.openehr.role')}</text>
@@ -147,6 +208,35 @@
 
   .node.lit rect {
     fill: var(--band-fill);
+  }
+
+  .node.selectable {
+    cursor: pointer;
+  }
+
+  .node.selectable rect {
+    transition:
+      fill 120ms ease,
+      stroke-width 120ms ease;
+  }
+
+  /* --gridline rather than --band-fill: the latter is both the lit state's fill and the blue that
+     means FHIR here, so hovering would read as "active" and, on the neutral openFHIR box, as "this
+     one is FHIR". A grey wash carries no such meaning and is visible in both themes. */
+  .node.selectable:hover rect,
+  .node.selectable:focus-visible rect {
+    fill: var(--gridline);
+    stroke-width: 2;
+  }
+
+  /* The browser's own focus ring lands on the group's bounding box rather than the rounded
+     rectangle, so the ring is drawn on the shape instead. */
+  .node.selectable:focus-visible {
+    outline: none;
+  }
+
+  .node.selectable:focus-visible rect {
+    stroke-dasharray: 4 3;
   }
 
   .name {

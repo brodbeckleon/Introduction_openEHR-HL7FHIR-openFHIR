@@ -308,7 +308,11 @@
     {/if}
 
     <section class="explainer" aria-label="How the three standards fit together">
-      <StandardsDiagram />
+      <!-- Each box opens the tab where that standard's own artefact can be read. -->
+      <StandardsDiagram
+        onselect={(system) =>
+          show(system === 'fhir' ? 'pipeline' : system === 'openfhir' ? 'mappings' : 'template')}
+      />
     </section>
 
     <section class="stats" aria-label="Summary">
