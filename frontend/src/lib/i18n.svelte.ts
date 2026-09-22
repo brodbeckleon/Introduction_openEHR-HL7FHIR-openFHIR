@@ -35,7 +35,7 @@ type Dictionary = Record<string, string>;
 const EN: Dictionary = {
   'app.title': 'Heart rate monitor',
   'app.lede':
-    'Resting heart rates are exchanged as HL7 FHIR Observations, mapped by openFHIR, and stored in openEHR. The chart is the excuse; the point is what happens between those three.',
+    'Resting heart rates are exchanged as HL7 FHIR Observations, mapped by openFHIR, and stored in openEHR \u2014 while who they belong to is stored in FHIR, because openEHR has nowhere to put a name. The chart is the excuse; the point is what happens between those four.',
   'tab.overview': 'Overview',
   'tour.label': 'Guided tour',
   'tour.step': 'Step {0} of {1}',
@@ -306,15 +306,19 @@ const EN: Dictionary = {
     'No response body — the openEHR API answers 204 to a write and puts the version uid in the ETag header.',
   'traffic.failed': 'failed',
 
+  'explainer.stores':
+    'Three standards, but two stores: the readings are openEHR compositions, and who they belong to is an ordinary FHIR resource. One identifier joins them \u2014 see how they come back together.',
+  'explainer.stores.link': 'Two stores',
   'diagram.alt':
     'HL7 FHIR carries the reading in, openFHIR maps it, openEHR stores it — and back out again.',
-  'diagram.fhir.role': 'exchange',
+  'diagram.fhir.role': 'exchange · who it is about',
   'diagram.openfhir.role': 'translation',
   'diagram.openehr.role': 'persistence · EHRbase',
   'diagram.import': 'import',
   'diagram.export': 'export',
   'diagram.store': 'store',
-  'diagram.fhir.caption': 'Says what a value means,|in codes. Built to cross|a system boundary.',
+  'diagram.fhir.caption':
+    'Says what a value means,|in codes. Also stores who|it is about \u2014 openEHR cannot.',
   'diagram.openfhir.caption':
     'Knows both models and|nothing else. Declarative|YAML, stores no data.',
   'diagram.openehr.caption':
@@ -329,7 +333,7 @@ const EN: Dictionary = {
 const DE: Dictionary = {
   'app.title': 'Ruhepuls-Monitor',
   'app.lede':
-    'Ruhepulse werden als HL7-FHIR-Observations ausgetauscht, von openFHIR gemappt und in openEHR gespeichert. Der Chart ist nur der Vorwand; worum es geht, passiert zwischen diesen dreien.',
+    'Ruhepulse werden als HL7-FHIR-Observations ausgetauscht, von openFHIR gemappt und in openEHR gespeichert \u2014 w\u00e4hrend in FHIR liegt, zu wem sie geh\u00f6ren, weil openEHR f\u00fcr einen Namen keinen Platz hat. Der Chart ist nur der Vorwand; worum es geht, passiert zwischen diesen vieren.',
   'tab.overview': 'Übersicht',
   'tour.label': 'Geführte Tour',
   'tour.step': 'Schritt {0} von {1}',
@@ -603,16 +607,19 @@ const DE: Dictionary = {
     'Kein Antwort-Rumpf — die openEHR-API antwortet auf einen Schreibvorgang mit 204 und legt die Version-UID in den ETag-Header.',
   'traffic.failed': 'fehlgeschlagen',
 
+  'explainer.stores':
+    'Drei Standards, aber zwei Speicher: die Messwerte sind openEHR-Compositions, und zu wem sie geh\u00f6ren, ist eine gew\u00f6hnliche FHIR-Ressource. Eine einzige Kennung verbindet beide \u2014 so kommen sie wieder zusammen.',
+  'explainer.stores.link': 'Zwei Speicher',
   'diagram.alt':
     'HL7 FHIR bringt die Messung herein, openFHIR mappt sie, openEHR speichert sie — und wieder hinaus.',
-  'diagram.fhir.role': 'Austausch',
+  'diagram.fhir.role': 'Austausch · um wen es geht',
   'diagram.openfhir.role': 'Übersetzung',
   'diagram.openehr.role': 'Persistenz · EHRbase',
   'diagram.import': 'Import',
   'diagram.export': 'Export',
   'diagram.store': 'speichern',
   'diagram.fhir.caption':
-    'Sagt in Codes, was ein|Wert bedeutet. Gebaut für|den Weg über Systemgrenzen.',
+    'Sagt in Codes, was ein Wert|bedeutet. Speichert auch, zu|wem \u2014 openEHR kann das nicht.',
   'diagram.openfhir.caption':
     'Kennt beide Modelle und|sonst nichts. Deklaratives|YAML, speichert nichts.',
   'diagram.openehr.caption':

@@ -7,6 +7,7 @@ import com.example.heartrate.fhir.PulseObservations;
 import com.example.heartrate.model.Reading;
 import com.example.heartrate.openehr.EhrbaseClient;
 import com.example.heartrate.patient.EhrResolver;
+import com.example.heartrate.patient.PatientDirectory;
 import com.example.heartrate.openfhir.OpenFhirClient;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -47,6 +48,7 @@ public class TraceService {
     private final Messages messages;
     private final HeartrateProperties properties;
     private final EhrResolver ehrResolver;
+    private final PatientDirectory patients;
     private final ObjectMapper objectMapper;
 
     public TraceService(
@@ -58,6 +60,7 @@ public class TraceService {
             Messages messages,
             HeartrateProperties properties,
             EhrResolver ehrResolver,
+            PatientDirectory patients,
             ObjectMapper objectMapper) {
         this.openFhir = openFhir;
         this.ehrbase = ehrbase;
@@ -67,6 +70,7 @@ public class TraceService {
         this.messages = messages;
         this.properties = properties;
         this.ehrResolver = ehrResolver;
+        this.patients = patients;
         this.objectMapper = objectMapper;
     }
 
@@ -90,6 +94,11 @@ public class TraceService {
         var observation = pulseObservations.observation(reading, patientId);
         steps.add(TraceStep.of("observation", messages.get("step.observation"), messages.get("actor.backend"),
                 "fhir", messages.get("explain.observation"), tree(pulseObservations.encode(observation))));
+
+        // 2b. Who the reading is about. This is the one stage where the other half of the record
+        //     appears: the Observation names a patient, and answering "who is that" reaches a
+        //     different store than everything above and below it.
+        addPatientStep(steps, patientId);
 
         // 3. The Bundle. FHIR Connect anchors the context mapping on a Bundle, so even a single
         //    reading travels as a one-entry collection.
@@ -177,6 +186,33 @@ public class TraceService {
                 messages.get("explain.input.raw"), messages.get("fail.unrecognised"))
                 .withJson(root));
         return Optional.empty();
+    }
+
+    /**
+     * The patient the reading belongs to, as the FHIR store holds them.
+     *
+     * <p>Every other stage of this pipeline is about one reading travelling between two
+     * representations of the same clinical fact. This one is not: it is the administrative half,
+     * which never goes through openFHIR and is never an openEHR composition. The Patient's secondary
+     * identifier is the whole join — it carries the id of the openEHR record the stages below write
+     * to, which is how a client holding one can find the other.
+     */
+    private void addPatientStep(List<TraceStep> steps, String patientId) {
+        try {
+            var patient = patients.byId(patientId);
+            var ehrId = ehrResolver.ehrIdFor(patientId);
+            steps.add(TraceStep.of("patient", messages.get("step.patient"),
+                            messages.get("actor.fhirStore"), "fhir",
+                            messages.get("explain.patient"),
+                            tree(pulseObservations.encode(patient)))
+                    .withNote(messages.get("note.patient", patientId, ehrId)));
+        } catch (Exception e) {
+            // The clinical half does not depend on this one, and saying so is more useful than a
+            // stage that silently disappears when the FHIR store is down.
+            steps.add(TraceStep.failed("patient", messages.get("step.patient"),
+                    messages.get("actor.fhirStore"), messages.get("explain.patient.short"),
+                    messages.get("fail.fhirStore", e.getMessage())));
+        }
     }
 
     private void storeAndQuery(JsonNode composition, List<TraceStep> steps, String ehrId) {

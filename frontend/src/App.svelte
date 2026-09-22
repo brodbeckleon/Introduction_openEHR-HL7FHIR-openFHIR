@@ -313,6 +313,14 @@
         onselect={(system) =>
           show(system === 'fhir' ? 'pipeline' : system === 'openfhir' ? 'mappings' : 'template')}
       />
+      <!-- The diagram draws the translation axis. This is the other one, which it cannot show
+           without becoming two diagrams at once. -->
+      <p class="stores-note">
+        {t('explainer.stores')}
+        <button type="button" class="link" onclick={() => show('record')}>
+          {t('explainer.stores.link')} →
+        </button>
+      </p>
     </section>
 
     <section class="stats" aria-label="Summary">
@@ -556,6 +564,25 @@
 
   .stale strong {
     color: var(--critical);
+  }
+
+  .stores-note {
+    margin: 14px 0 0;
+    max-width: 68ch;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    line-height: 1.55;
+  }
+
+  .stores-note .link {
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    color: var(--series-resting);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
   }
 
   .explainer {
