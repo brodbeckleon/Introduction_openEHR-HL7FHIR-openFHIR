@@ -95,10 +95,9 @@ public class TraceService {
         steps.add(TraceStep.of("observation", messages.get("step.observation"), messages.get("actor.backend"),
                 "fhir", messages.get("explain.observation"), tree(pulseObservations.encode(observation))));
 
-        // 2b. Who the reading is about. This is the one stage where the other half of the record
-        //     appears: the Observation names a patient, and answering "who is that" reaches a
-        //     different store than everything above and below it.
-        addPatientStep(steps, patientId);
+        // 2b. Which record this belongs in. Not a FHIR question at all: openEHR anchors an EHR on
+        //     EHR_STATUS.subject, so the answer comes out of openEHR itself.
+        addEhrStep(steps, patientId);
 
         // 3. The Bundle. FHIR Connect anchors the context mapping on a Bundle, so even a single
         //    reading travels as a one-entry collection.
@@ -135,8 +134,14 @@ public class TraceService {
             storeAndQuery(composition, steps, ehrResolver.ehrIdFor(patientId));
         }
 
-        // 7. The way back, which is what makes the mapping a mapping rather than an importer.
-        roundTrip(composition, bundleJson, steps);
+        // 7. The way back — a different operation from everything above it, which is why the
+        //    inspector shows the two apart.
+        var back = roundTrip(composition, bundleJson, steps);
+
+        // 8. and 9. The other half of the record, and the two put together. This is what
+        //    GET /fhir/Patient/{id}/$everything does, and the only place both stores meet.
+        addPatientStep(steps, patientId);
+        addAssembledStep(steps, patientId, back);
 
         return assemble(root, store, steps, composition);
     }
@@ -189,6 +194,63 @@ public class TraceService {
     }
 
     /**
+     * Which openEHR record this reading belongs in.
+     *
+     * <p>A FHIR Observation names a subject; openEHR addresses a record by its EHR id. Nothing in
+     * this service translates between the two, because openEHR already answers the question itself:
+     * an EHR carries an EHR_STATUS whose subject says who it is about, and that is queryable. The
+     * AQL below is the one that really runs.
+     */
+    private void addEhrStep(List<TraceStep> steps, String patientId) {
+        try {
+            var ehrId = ehrResolver.ehrIdFor(patientId);
+            steps.add(TraceStep.of("ehr", messages.get("step.ehr"), "EHRbase", "openehr",
+                            messages.get("explain.ehr"),
+                            objectMapper.createObjectNode()
+                                    .put("patientId", patientId)
+                                    .put("ehrId", ehrId))
+                    .withQuery(EhrbaseClient.EHR_BY_SUBJECT_AQL.strip()));
+        } catch (Exception e) {
+            steps.add(TraceStep.failed("ehr", messages.get("step.ehr"), "EHRbase",
+                    messages.get("explain.ehr.short"), messages.get("fail.ehrbase", e.getMessage())));
+        }
+    }
+
+    /**
+     * The two halves put together, which is what {@code $everything} answers with.
+     *
+     * <p>The readings came back out of openEHR through the mappings; the patient never went in and
+     * never came out, because that half lives in the FHIR store. This is the only stage where both
+     * are in one document, and nothing in it says which entry came from where.
+     */
+    private void addAssembledStep(List<TraceStep> steps, String patientId, JsonNode back) {
+        if (back == null) {
+            return;
+        }
+        try {
+            var bundle = new org.hl7.fhir.r4.model.Bundle();
+            bundle.setType(org.hl7.fhir.r4.model.Bundle.BundleType.SEARCHSET);
+            bundle.addEntry().setResource(patients.byId(patientId));
+            for (JsonNode entry : back.path("entry")) {
+                var resource = entry.path("resource");
+                if ("Observation".equals(resource.path("resourceType").asText())) {
+                    bundle.addEntry().setResource(pulseObservations.parseObservation(resource.toString()));
+                }
+            }
+            bundle.setTotal(bundle.getEntry().size());
+            steps.add(TraceStep.of("assembled", messages.get("step.assembled"),
+                            messages.get("actor.backend"), "fhir",
+                            messages.get("explain.assembled"), tree(pulseObservations.encode(bundle)))
+                    .withCall("GET /fhir/Patient/%s/$everything".formatted(patientId), 0)
+                    .onTheWayBack());
+        } catch (Exception e) {
+            steps.add(TraceStep.failed("assembled", messages.get("step.assembled"),
+                    messages.get("actor.backend"), messages.get("explain.assembled.short"),
+                    messages.get("fail.fhirStore", e.getMessage())).onTheWayBack());
+        }
+    }
+
+    /**
      * The patient the reading belongs to, as the FHIR store holds them.
      *
      * <p>Every other stage of this pipeline is about one reading travelling between two
@@ -205,14 +267,15 @@ public class TraceService {
                             messages.get("actor.fhirStore"), "fhir",
                             messages.get("explain.patient"),
                             tree(pulseObservations.encode(patient)))
+                    .withCall("GET /fhir/Patient/%s".formatted(patientId), 0)
                     .withNote(messages.get("note.patient", patientId, ehrId))
-                    .asAside());
+                    .onTheWayBack());
         } catch (Exception e) {
             // The clinical half does not depend on this one, and saying so is more useful than a
             // stage that silently disappears when the FHIR store is down.
             steps.add(TraceStep.failed("patient", messages.get("step.patient"),
                     messages.get("actor.fhirStore"), messages.get("explain.patient.short"),
-                    messages.get("fail.fhirStore", e.getMessage())).asAside());
+                    messages.get("fail.fhirStore", e.getMessage())).onTheWayBack());
         }
     }
 
@@ -240,7 +303,8 @@ public class TraceService {
             rows = ehrbase.query(AQL, Map.of("ehrId", ehrId));
         } catch (Exception e) {
             steps.add(TraceStep.failed("aql", messages.get("step.aql"), "EHRbase",
-                    messages.get("explain.aql.short"), messages.get("fail.aql", e.getMessage())));
+                    messages.get("explain.aql.short"), messages.get("fail.aql", e.getMessage()))
+                    .onTheWayBack());
             return;
         }
         tookMs = (System.nanoTime() - started) / 1_000_000;
@@ -258,11 +322,12 @@ public class TraceService {
         steps.add(TraceStep.of("aql", messages.get("step.aql"), "EHRbase", "openehr",
                 messages.get("explain.aql"), result)
                 .withCall("POST /rest/openehr/v1/query/aql", tookMs)
+                .onTheWayBack()
                 .withQuery(AQL)
                 .withNote(rows.size() > 5 ? messages.get("note.aql.showing", rows.size()) : null));
     }
 
-    private void roundTrip(JsonNode composition, String originalBundleJson, List<TraceStep> steps) {
+    private JsonNode roundTrip(JsonNode composition, String originalBundleJson, List<TraceStep> steps) {
         JsonNode back;
         long started = System.nanoTime();
         try {
@@ -270,8 +335,8 @@ public class TraceService {
         } catch (Exception e) {
             steps.add(TraceStep.failed("roundtrip", messages.get("step.roundtrip"), "openFHIR",
                     messages.get("explain.roundtrip.short"),
-                    messages.get("fail.roundtrip", e.getMessage())));
-            return;
+                    messages.get("fail.roundtrip", e.getMessage())).onTheWayBack());
+            return null;
         }
         long tookMs = (System.nanoTime() - started) / 1_000_000;
 
@@ -279,7 +344,9 @@ public class TraceService {
         steps.add(TraceStep.of("roundtrip", messages.get("step.roundtrip"), "openFHIR", "fhir",
                 messages.get("explain.roundtrip"), back)
                 .withCall("POST /openfhir/tofhir?templateId=%s".formatted(properties.templateId()), tookMs)
-                .withDifferences(differences));
+                .withDifferences(differences)
+                .onTheWayBack());
+        return back;
     }
 
     /** The FHIR ⇄ openEHR correspondences, located in the documents this run actually produced. */

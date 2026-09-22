@@ -24,7 +24,7 @@ public class EhrbaseClient {
     private static final String API = "/rest/openehr/v1";
 
     /** Which EHR belongs to a patient. The answer lives in openEHR itself, not in this service. */
-    private static final String EHR_BY_SUBJECT_AQL = """
+    public static final String EHR_BY_SUBJECT_AQL = """
             SELECT e/ehr_id/value AS ehr_id
             FROM EHR e
             WHERE e/ehr_status/subject/external_ref/id/value = $patientId

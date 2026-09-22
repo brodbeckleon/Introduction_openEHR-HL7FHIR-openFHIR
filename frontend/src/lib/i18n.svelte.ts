@@ -140,6 +140,9 @@ const EN: Dictionary = {
   'diagram.open.openfhir': 'Open the mappings \u2014 the FHIR Connect rules openFHIR executes',
   'diagram.open.openehr':
     'Open the template explorer \u2014 the openEHR model the record is validated against',
+  'inspector.travel': 'Direction',
+  'inspector.travel.in': 'The way in · POST',
+  'inspector.travel.out': 'The way back · GET',
   'tab.record': 'Two stores',
   'record.title': 'One record, two stores',
   'record.lede':
@@ -257,7 +260,7 @@ const EN: Dictionary = {
 
   'inspector.title': 'Pipeline inspector',
   'inspector.lede':
-    'The import does this every time and throws it all away. Here nothing is thrown away: pick an input, then walk the stages to see the same heart rate as FHIR, as an openEHR COMPOSITION, and back again. Nothing is written to the record unless you ask for it.',
+    'The import does this every time and throws it all away. Here nothing is thrown away: pick an input, then walk the stages. They are two journeys, not one \u2014 a POST puts the reading in, a GET brings it back, and only on the way back does the other half of the record join it. Nothing is written unless you ask for it.',
   'inspector.ownFile': 'Your own file…',
   'inspector.ownFileSummary': 'Any FHIR Bundle or Observation.',
   'inspector.store.title': 'Also store it in the record',
@@ -440,6 +443,9 @@ const DE: Dictionary = {
     'Mappings \u00f6ffnen \u2014 die FHIR-Connect-Regeln, die openFHIR ausf\u00fchrt',
   'diagram.open.openehr':
     'Template-Explorer \u00f6ffnen \u2014 das openEHR-Modell, gegen das validiert wird',
+  'inspector.travel': 'Richtung',
+  'inspector.travel.in': 'Hinweg · POST',
+  'inspector.travel.out': 'R\u00fcckweg · GET',
   'tab.record': 'Zwei Speicher',
   'record.title': 'Ein Record, zwei Speicher',
   'record.lede':
@@ -557,7 +563,7 @@ const DE: Dictionary = {
 
   'inspector.title': 'Pipeline-Inspector',
   'inspector.lede':
-    'Der Import macht das jedes Mal und wirft alles weg. Hier wird nichts weggeworfen: wähle eine Eingabe und gehe die Stufen durch, um denselben Puls als FHIR zu sehen, als openEHR-COMPOSITION und wieder zurück. In die Akte wird nichts geschrieben, solange du nicht darum bittest.',
+    'Der Import macht das jedes Mal und wirft alles weg. Hier wird nichts weggeworfen: w\u00e4hle eine Eingabe und gehe die Stufen durch. Es sind zwei Wege, nicht einer \u2014 ein POST bringt den Messwert hinein, ein GET bringt ihn zur\u00fcck, und erst auf dem R\u00fcckweg kommt die andere H\u00e4lfte des Records dazu. Geschrieben wird nichts, solange du nicht darum bittest.',
   'inspector.ownFile': 'Eigene Datei…',
   'inspector.ownFileSummary': 'Ein beliebiges FHIR Bundle oder eine Observation.',
   'inspector.store.title': 'Zusätzlich in der Akte speichern',

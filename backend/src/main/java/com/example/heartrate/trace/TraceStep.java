@@ -19,9 +19,9 @@ import java.util.List;
  * @param differences only on the round trip: what the journey through openEHR changed
  * @param query the AQL, kept out of the JSON so the UI can show it as the query it is rather than
  *     as one escaped string
- * @param aside true when this stage is not a link in the chain but a lookup beside it. The pipeline
- *     is drawn as a line because most of it is one; a stage that was fetched from somewhere else
- *     rather than made from the stage before it would otherwise claim a descent it does not have.
+ * @param direction {@code in} for the way a reading travels into the record, {@code out} for the way
+ *     it comes back. The inspector shows one at a time: they are two operations — a POST and a GET —
+ *     and drawing them as one line was what made a lookup look like a link in a chain.
  */
 public record TraceStep(
         String id,
@@ -36,52 +36,52 @@ public record TraceStep(
         Long durationMs,
         List<RoundTripDifference> differences,
         String query,
-        boolean aside) {
+        String direction) {
 
     static TraceStep of(String id, String title, String actor, String standard, String explanation, JsonNode json) {
         return new TraceStep(
-                id, title, actor, standard, null, explanation, null, "ok", json, null, null, null, false);
+                id, title, actor, standard, null, explanation, null, "ok", json, null, null, null, "in");
     }
 
     TraceStep withCall(String call, long durationMs) {
         return new TraceStep(
                 id, title, actor, standard, call, explanation, note, status, json, durationMs, differences, query,
-                aside);
+                direction);
     }
 
     TraceStep withNote(String note) {
         return new TraceStep(
                 id, title, actor, standard, call, explanation, note, status, json, durationMs, differences, query,
-                aside);
+                direction);
     }
 
     TraceStep withDifferences(List<RoundTripDifference> differences) {
         return new TraceStep(
                 id, title, actor, standard, call, explanation, note, status, json, durationMs, differences, query,
-                aside);
+                direction);
     }
 
     TraceStep withQuery(String query) {
         return new TraceStep(
                 id, title, actor, standard, call, explanation, note, status, json, durationMs, differences, query,
-                aside);
+                direction);
     }
 
     TraceStep withJson(JsonNode json) {
         return new TraceStep(
                 id, title, actor, standard, call, explanation, note, status, json, durationMs, differences, query,
-                aside);
+                direction);
     }
 
-    /** Marks this stage as standing beside the chain rather than in it. */
-    TraceStep asAside() {
+    /** Moves this stage onto the way back — the GET rather than the POST. */
+    TraceStep onTheWayBack() {
         return new TraceStep(
                 id, title, actor, standard, call, explanation, note, status, json, durationMs, differences, query,
-                true);
+                "out");
     }
 
     static TraceStep failed(String id, String title, String actor, String explanation, String reason) {
         return new TraceStep(
-                id, title, actor, "none", null, explanation, reason, "error", null, null, null, null, false);
+                id, title, actor, "none", null, explanation, reason, "error", null, null, null, null, "in");
     }
 }

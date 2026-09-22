@@ -16,11 +16,12 @@
 
   const { handoff = null, onshowRule, wantedStage = null }: Props = $props();
 
-  // The tour names a stage; honouring it once the trace exists keeps the two in step.
+  // The tour names a stage; honouring it once the trace exists keeps the two in step. It also has
+  // to open the right direction, or the tour points at a stage the rail is not showing.
   $effect(() => {
     if (!wantedStage || !trace) return;
     const wanted = trace.steps.findIndex((s) => s.id === wantedStage);
-    if (wanted >= 0) selectedStep = wanted;
+    if (wanted >= 0) show(wanted);
   });
 
   let samples = $state<TraceSample[]>([]);
@@ -31,6 +32,22 @@
 
   /** Which stage is on screen; the panel to its left is the stage it came from. */
   let selectedStep = $state(0);
+  /**
+   * Which half of the journey the rail is showing.
+   *
+   * <p>A POST and a GET are two operations, not one long line. Keeping `selectedStep` an index into
+   * the whole run and filtering only what is drawn means everything that names a stage — the tour,
+   * the landing on the composition — keeps working and just opens the right half.
+   */
+  let travel = $state<'in' | 'out'>('in');
+
+  /** Selects a stage by its position in the whole run, opening the half it belongs to. */
+  function show(index: number): void {
+    selectedStep = index;
+    const direction = trace?.steps[index]?.direction;
+    if (direction) travel = direction;
+    selectedLink = null;
+  }
   let selectedLink = $state<string | null>(null);
   let activeSample = $state<string | null>(null);
   let fileInput = $state<HTMLInputElement | null>(null);
@@ -65,8 +82,7 @@
       trace = await runTrace(json, store);
       // Land on the composition when there is one: that is the step worth looking at first.
       const composition = trace.steps.findIndex((step) => step.id === 'composition');
-      selectedStep = composition >= 0 ? composition : trace.steps.length - 1;
-      selectedLink = null;
+      show(composition >= 0 ? composition : trace.steps.length - 1);
     } catch (cause) {
       trace = null;
       error = cause instanceof Error ? cause.message : String(cause);
@@ -97,17 +113,22 @@
    * look like it was made out of the Patient.
    */
   const previous = $derived.by<TraceStep | null>(() => {
-    if (!step || step.aside) return null;
+    if (!step) return null;
     for (let index = selectedStep - 1; index >= 0; index--) {
       const candidate = steps[index];
-      if (candidate && !candidate.aside) return candidate;
+      if (candidate && candidate.direction === step.direction) return candidate;
     }
     return null;
   });
 
-  /** Position along the chain, counting only the stages that are part of it. */
-  const chainNumber = (index: number): number | null =>
-    steps[index]?.aside ? null : steps.slice(0, index + 1).filter((s) => !s.aside).length;
+  /** The stages of the half on screen, paired with their place in the whole run. */
+  const shown = $derived(
+    steps.map((item, index) => ({ item, index })).filter(({ item }) => item.direction === travel),
+  );
+
+  /** True when a half has anything to show — the way back is empty until the mapping has run. */
+  const hasTravel = (direction: 'in' | 'out'): boolean =>
+    steps.some((item) => item.direction === direction);
 
   /** A step that failed has no JSON; one that was rejected at the door still has the input. */
   const hasJson = (candidate: TraceStep | null): boolean =>
@@ -179,23 +200,39 @@
       {#if trace.stored}<span class="stored-note">{t('inspector.wrote')}</span>{/if}
     </p>
 
+    <!-- Two operations, shown apart: a POST puts a reading in, a GET brings it back with the other
+         half of the record attached. -->
+    <div class="travel" role="tablist" aria-label={t('inspector.travel')}>
+      {#each [['in', 'inspector.travel.in'], ['out', 'inspector.travel.out']] as const as [id, key] (id)}
+        <button
+          type="button"
+          role="tab"
+          aria-selected={travel === id}
+          class:active={travel === id}
+          disabled={!hasTravel(id)}
+          onclick={() => {
+            travel = id;
+            const first = steps.findIndex((item) => item.direction === id);
+            if (first >= 0) show(first);
+          }}
+        >
+          {t(key)}
+        </button>
+      {/each}
+    </div>
+
     <ol class="rail">
-      {#each steps as item, index (item.id)}
-        <li class:aside={item.aside} class:before-aside={steps[index + 1]?.aside}>
+      {#each shown as { item, index }, position (item.id)}
+        <li>
           <button
             type="button"
             class="stage"
             data-standard={item.standard}
             class:active={index === selectedStep}
             class:failed={item.status === 'error'}
-            onclick={() => {
-              selectedStep = index;
-              selectedLink = null;
-            }}
+            onclick={() => show(index)}
           >
-            <span class="stage-index" class:aside={item.aside}>
-              {chainNumber(index) ?? '·'}
-            </span>
+            <span class="stage-index">{position + 1}</span>
             <span class="stage-title">{item.title}</span>
             <span class="stage-actor">{item.actor}</span>
           </button>
@@ -402,6 +439,37 @@
     border-radius: var(--radius);
   }
 
+  .travel {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    margin-bottom: 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+  }
+
+  .travel button {
+    background: none;
+    border: none;
+    border-radius: 999px;
+    padding: 5px 14px;
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+
+  .travel button.active {
+    background: var(--band-fill);
+    color: var(--text-primary);
+  }
+
+  .travel button:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
   .rail {
     list-style: none;
     display: flex;
@@ -422,24 +490,6 @@
     content: '→';
     color: var(--text-muted);
     margin-left: 8px;
-  }
-
-  /* No arrow into an aside and none out of it. It was looked up somewhere else rather than made
-     from the stage before it, and an arrow on either side claims exactly the descent that made
-     the Bundle look like it came out of the Patient. */
-  .rail li.aside::after,
-  .rail li.before-aside::after {
-    content: none;
-  }
-
-  .rail li.aside {
-    /* Set apart, so the chain reads as continuing past it rather than through it. */
-    margin: 0 10px;
-    opacity: 0.92;
-  }
-
-  .rail li.aside .stage {
-    border-style: dashed;
   }
 
   .rail li {
@@ -475,12 +525,6 @@
   .stage.failed {
     border-color: var(--critical);
     color: var(--critical);
-  }
-
-  /* An aside carries a dot instead of a number: it has no position in the chain, and giving it
-     one is exactly what made the stage after it look like its descendant. */
-  .stage-index.aside {
-    opacity: 0.55;
   }
 
   .stage-index {

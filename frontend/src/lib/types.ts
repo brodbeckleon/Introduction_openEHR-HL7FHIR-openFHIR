@@ -54,11 +54,11 @@ export interface TraceStep {
   /** The AQL, kept beside the JSON so it can be shown as a query rather than an escaped string. */
   query?: string;
   /**
-   * True when this stage stands beside the chain rather than in it — looked up somewhere else
-   * rather than made from the stage before it. The rail numbers the chain only, and an aside is
-   * shown without a predecessor, because it did not come from one.
+   * `in` for the way a reading travels into the record, `out` for the way it comes back. The
+   * inspector shows one at a time: they are two operations, a POST and a GET, and drawing them as
+   * one line made a lookup look like a link in a chain.
    */
-  aside?: boolean;
+  direction: 'in' | 'out';
 }
 
 /**
