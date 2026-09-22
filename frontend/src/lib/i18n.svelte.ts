@@ -261,6 +261,10 @@ const EN: Dictionary = {
   'inspector.title': 'Pipeline inspector',
   'inspector.lede':
     'The import does this every time and throws it all away. Here nothing is thrown away: pick an input, then walk the stages. They are two journeys, not one \u2014 a POST puts the reading in, a GET brings it back, and only on the way back does the other half of the record join it. Nothing is written unless you ask for it.',
+  'inspector.dry.in':
+    'This was a dry run, so the way in stops at the record it would have been written to. Tick \u201cAlso store it in the record\u201d to see EHRbase validate and keep it.',
+  'inspector.dry.out':
+    'Nothing was stored, so there was nothing to read back: this is the same composition mapped in the other direction, not one that came out of EHRbase. Tick \u201cAlso store it in the record\u201d and the way back starts with the AQL that fetches it.',
   'inspector.ownFile': 'Your own file…',
   'inspector.ownFileSummary': 'Any FHIR Bundle or Observation.',
   'inspector.store.title': 'Also store it in the record',
@@ -564,6 +568,10 @@ const DE: Dictionary = {
   'inspector.title': 'Pipeline-Inspector',
   'inspector.lede':
     'Der Import macht das jedes Mal und wirft alles weg. Hier wird nichts weggeworfen: w\u00e4hle eine Eingabe und gehe die Stufen durch. Es sind zwei Wege, nicht einer \u2014 ein POST bringt den Messwert hinein, ein GET bringt ihn zur\u00fcck, und erst auf dem R\u00fcckweg kommt die andere H\u00e4lfte des Records dazu. Geschrieben wird nichts, solange du nicht darum bittest.',
+  'inspector.dry.in':
+    'Das war ein Trockenlauf, deshalb endet der Hinweg bei dem Record, in den geschrieben worden w\u00e4re. Setze den Haken bei \u201eAuch in die Akte schreiben\u201c, um EHRbase validieren und speichern zu sehen.',
+  'inspector.dry.out':
+    'Es wurde nichts gespeichert, also gab es nichts zur\u00fcckzulesen: das ist dieselbe Composition in die andere Richtung gemappt, nicht eine, die aus EHRbase kam. Mit dem Haken bei \u201eAuch in die Akte schreiben\u201c beginnt der R\u00fcckweg mit der AQL, die sie holt.',
   'inspector.ownFile': 'Eigene Datei…',
   'inspector.ownFileSummary': 'Ein beliebiges FHIR Bundle oder eine Observation.',
   'inspector.store.title': 'Zusätzlich in der Akte speichern',

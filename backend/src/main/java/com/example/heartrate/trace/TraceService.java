@@ -95,9 +95,6 @@ public class TraceService {
         steps.add(TraceStep.of("observation", messages.get("step.observation"), messages.get("actor.backend"),
                 "fhir", messages.get("explain.observation"), tree(pulseObservations.encode(observation))));
 
-        // 2b. Which record this belongs in. Not a FHIR question at all: openEHR anchors an EHR on
-        //     EHR_STATUS.subject, so the answer comes out of openEHR itself.
-        addEhrStep(steps, patientId);
 
         // 3. The Bundle. FHIR Connect anchors the context mapping on a Bundle, so even a single
         //    reading travels as a one-entry collection.
@@ -129,7 +126,13 @@ public class TraceService {
                 .withCall("POST /openfhir/toopenehr?templateId=%s&format=canonical"
                         .formatted(properties.templateId()), tookMs));
 
-        // 5. and 6. Persistence, and reading back with AQL — only when explicitly asked for.
+        // 5. Where it goes. Not a FHIR question at all: openEHR anchors an EHR on
+        //    EHR_STATUS.subject, so the answer comes out of openEHR itself. It sits here rather
+        //    than earlier because it is the address for the write, not part of building the
+        //    Bundle — and on a dry run it is the last thing the way in has to say.
+        addEhrStep(steps, patientId);
+
+        // 6. and 7. Persistence, and reading back with AQL — only when explicitly asked for.
         if (store) {
             storeAndQuery(composition, steps, ehrResolver.ehrIdFor(patientId));
         }

@@ -221,6 +221,12 @@
       {/each}
     </div>
 
+    <!-- A dry run has no EHRbase stage to end on and none to start from, and saying so beats
+         leaving a chain that looks like it lost a link. -->
+    {#if trace && !trace.stored}
+      <p class="dry-note">{travel === 'in' ? t('inspector.dry.in') : t('inspector.dry.out')}</p>
+    {/if}
+
     <ol class="rail">
       {#each shown as { item, index }, position (item.id)}
         <li>
@@ -437,6 +443,14 @@
     background: var(--surface-1);
     border: 1px solid var(--border);
     border-radius: var(--radius);
+  }
+
+  .dry-note {
+    margin: 0 0 12px;
+    max-width: 74ch;
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    line-height: 1.5;
   }
 
   .travel {
