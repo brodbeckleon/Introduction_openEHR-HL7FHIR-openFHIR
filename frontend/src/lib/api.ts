@@ -327,9 +327,16 @@ function summarise(resource: Record<string, unknown>): string {
     const when = String(resource.effectiveDateTime ?? '').slice(0, 10);
     return `${when} — ${quantity?.value ?? '?'} ${quantity?.unit ?? ''}`.trim();
   }
+  // Everything the panel beside this claims the FHIR store holds. Leaving a field out here makes
+  // that claim look false even when the record has it.
   const names = resource.name as { text?: string }[] | undefined;
   const addresses = resource.address as { postalCode?: string; city?: string }[] | undefined;
   const place = addresses?.[0];
-  const where = place ? `, ${place.postalCode ?? ''} ${place.city ?? ''}`.trimEnd() : '';
-  return `${names?.[0]?.text ?? resource.id}${where}`;
+  const parts = [
+    names?.[0]?.text ?? String(resource.id ?? ''),
+    typeof resource.gender === 'string' ? resource.gender : null,
+    typeof resource.birthDate === 'string' ? resource.birthDate : null,
+    place ? `${place.postalCode ?? ''} ${place.city ?? ''}`.trim() : null,
+  ];
+  return parts.filter(Boolean).join(' · ');
 }
