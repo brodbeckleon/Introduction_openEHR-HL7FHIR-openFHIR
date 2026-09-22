@@ -1,6 +1,7 @@
 <script lang="ts">
   import RichText from './RichText.svelte';
   import { fetchMappingRules, fetchMappings } from './api';
+  import MappingGraph from './MappingGraph.svelte';
   import MappingPanel from './MappingPanel.svelte';
   import MappingRules from './MappingRules.svelte';
   import { t } from './i18n.svelte';
@@ -73,6 +74,8 @@
     {/if}
 
     <MappingRules {rules} {selected} onselect={select} />
+
+    <MappingGraph {rules} onselect={select} />
 
     <MappingPanel
       {mappings}
