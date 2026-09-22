@@ -9,22 +9,22 @@ It is a tech-stack demo for **openEHR** (persistence, via EHRbase), **HL7 FHIR**
 
 ## How the standards fit together
 
-Nothing is stored in FHIR and nothing is exchanged in openEHR — each standard does the one job it is
-good at, and openFHIR is the only thing that knows how to get from one to the other.
+No *clinical* data is stored in FHIR and nothing is exchanged in openEHR — each standard does the one
+job it is good at, and openFHIR is the only thing that knows how to get from one to the other. Where
+the administrative half of a record lives is a separate question, and the next section is about it.
 
-```
-             FHIR Observation (R4, LOINC 40443-4)
-                  │
-                  ▼
-              openFHIR  ──/openfhir/toopenehr──┐
-                  │  (FHIR Connect mappings)   │
-                  ▼                            │
-          openEHR COMPOSITION                  │
-                  │                            │
-                  ▼                            │
-              EHRbase  ────── AQL ─────────────┴──► Svelte chart
-            (openEHR CDR)  │
-                           └─► /openfhir/tofhir ─► FHIR Bundle (GET /fhir/Observation)
+```mermaid
+flowchart LR
+    obs["FHIR Observation<br/>LOINC 40443-4 · UCUM /min"]
+    comp["openEHR COMPOSITION<br/>encounter.v1 · pulse.v2"]
+    cdr[("EHRbase<br/>openEHR CDR")]
+    bundle["FHIR Bundle<br/>GET /fhir/Observation"]
+    chart["Svelte chart"]
+
+    obs -->|"openFHIR<br/>/openfhir/toopenehr"| comp
+    comp --> cdr
+    cdr -->|"openFHIR<br/>/openfhir/tofhir"| bundle
+    cdr -->|AQL| chart
 ```
 
 - **Importing.** A resting heart rate becomes an `Observation` (LOINC `40443-4`, category
@@ -56,6 +56,23 @@ is where those belong.
 The two are joined by one ordinary identifier: the Patient carries its EHR id as a secondary
 identifier, and openEHR carries the patient id in `EHR_STATUS.subject`. Either side can be reached
 from the other, and neither server knows the other exists.
+
+```mermaid
+flowchart LR
+    backend["heartrate-monitor<br/>backend"]
+    store[("FHIR store<br/>name · gender · address")]
+    cdr[("EHRbase<br/>the readings")]
+    bundle["one Bundle<br/>/fhir/Patient/id/$everything"]
+
+    backend -->|"who are they?"| store
+    backend -->|"what was measured?"| cdr
+    store --> bundle
+    cdr --> bundle
+    store <-. "each carries the<br/>other's identifier" .-> cdr
+```
+
+That dotted line is the whole join. It is not a foreign key and neither server resolves it — each
+side simply carries the other's identifier, and the backend is the only thing that ever follows it.
 
 `GET /fhir/Patient/{id}/$everything` is the only place both halves meet — one Bundle, assembled from
 two stores, with nothing in it saying which entry came from where. The **Two stores** tab shows that
