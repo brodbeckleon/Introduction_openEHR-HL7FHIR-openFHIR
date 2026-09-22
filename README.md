@@ -489,6 +489,11 @@ curl -u ehrbase-user:SuperSecretPassword \
   the roster is a 404 rather than a new record.
 - The FHIR store is reachable on `:18083` and its Postgres on `:18084`, so `cd fhir-server &&
   ./gradlew bootRun` talks to the same database the container does.
+- The frontend container keeps `node_modules` in a named volume, which a host `npm install` does not
+  write to — the volume is mounted over the directory it would land in. Its entrypoint compares
+  `package-lock.json` against a stamp in the volume and installs when they differ, so adding a
+  dependency on the host reaches the container on its next start. A start with nothing to do costs
+  one checksum.
 - The operational template was derived from Better's *NEWS2 Encounter Parent* template, reduced to
   the single pulse observation.
 - The open-source edition of openFHIR has no authentication; EHRbase runs with basic auth. Neither
