@@ -18,7 +18,7 @@ repositories {
 }
 
 ext {
-    hapiVersion = '7.6.0'
+    hapiVersion = '8.8.1'
 }
 
 dependencies {
@@ -29,14 +29,21 @@ dependencies {
     implementation "ca.uhn.hapi.fhir:hapi-fhir-base:${hapiVersion}"
     implementation "ca.uhn.hapi.fhir:hapi-fhir-structures-r4:${hapiVersion}"
 
+    // The FHIR store: Patients as FHIR JSON in one table of this service's own Postgres. Plain JDBC
+    // rather than JPA, so nothing touches the database before the first patient is asked for — the
+    // service has to start, and draw the chart, with that database down.
+    implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+    runtimeOnly 'org.postgresql:postgresql'
+
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
 
-// The pipeline inspector shows the FHIR Connect mappings, so a jar needs its own copy of them.
-// At development time MappingLibrary reads openfhir-bootstrap/ directly and these are the fallback.
+// The mappings and the operational template, copied into the jar. At development time
+// MappingLibrary reads openfhir-bootstrap/ directly and these are the fallback — and the shipped
+// version the mapping editor resets to. There is no other copy of the template.
 tasks.named('processResources') {
     from('../openfhir-bootstrap') {
-        include '*.yaml'
+        include '*.yaml', '*.opt'
         into 'mappings'
     }
 }

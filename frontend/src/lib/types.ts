@@ -46,10 +46,12 @@ export interface TraceStep {
   /** The HTTP call that produced it, when a server was involved. */
   call?: string;
   explanation: string;
+  /** The explanation in a sentence or two, shown first; only where the full text is long. */
+  summary?: string | null;
   note?: string;
   status: 'ok' | 'error';
   json?: unknown;
-  durationMs?: number;
+  durationMs?: number | null;
   differences?: RoundTripDifference[];
   /** The AQL, kept beside the JSON so it can be shown as a query rather than an escaped string. */
   query?: string;
@@ -59,6 +61,12 @@ export interface TraceStep {
    * one line made a lookup look like a link in a chain.
    */
   direction: 'in' | 'out';
+  /**
+   * Whether this stage hangs off the line rather than lying on it. The FHIR store is the only thing
+   * that does: the reading never passes through it, so a Patient drawn in the chain would claim a
+   * descent that does not exist. A branch hangs off the stage before it.
+   */
+  branch: boolean;
 }
 
 /**
@@ -97,7 +105,6 @@ export interface SaveResult {
 export interface Trace {
   inputKind: 'bundle' | 'observation' | 'unknown';
   inputLabel: string;
-  stored: boolean;
   steps: TraceStep[];
   links: MappingLink[];
   mappings: MappingSource[];

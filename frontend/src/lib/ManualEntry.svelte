@@ -11,11 +11,9 @@
     days: DailyRestingHeartRate[];
     /** Called after a reading was stored, so the chart can reload. */
     onstored: () => Promise<void> | void;
-    /** Hands the built Observation to the pipeline inspector instead of storing it. */
-    ontrace?: (observation: unknown) => void;
   }
 
-  const { days, onstored, ontrace }: Props = $props();
+  const { days, onstored }: Props = $props();
 
   const LOINC = 'http://loinc.org';
   const UCUM = 'http://unitsofmeasure.org';
@@ -115,16 +113,6 @@
     <button type="button" class="primary" disabled={!valid || saving} onclick={save}>
       {saving ? t('manual.storing') : existing ? t('manual.correct') : t('manual.store')}
     </button>
-    {#if ontrace}
-      <button
-        type="button"
-        class="secondary"
-        disabled={!valid}
-        onclick={() => ontrace(observation)}
-      >
-        {t('manual.trace')}
-      </button>
-    {/if}
   </div>
 
   {#if !valid}
@@ -239,12 +227,6 @@
     background: var(--series-resting);
     color: #fff;
     border: none;
-  }
-
-  .secondary {
-    background: transparent;
-    color: var(--series-resting);
-    border: 1px solid var(--border);
   }
 
   button:disabled {

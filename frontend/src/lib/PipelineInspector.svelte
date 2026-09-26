@@ -1,20 +1,21 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
-  import { fetchTraceSamples, runTrace } from './api';
+  import { fetchTraceSamples, recordOf, runTrace } from './api';
   import JsonPanel from './JsonPanel.svelte';
+  import More from './More.svelte';
+  import StoreColumns from './StoreColumns.svelte';
   import { t } from './i18n.svelte';
+  import { patient } from './patient.svelte';
   import type { MappingLink, Trace, TraceSample, TraceStep } from './types';
 
   interface Props {
-    /** An Observation sent over from the manual form, traced instead of the default sample. */
-    handoff?: unknown | null;
     /** Opens the mappings tab at the rule behind a correspondence. */
     onshowRule?: (link: MappingLink) => void;
     /** A stage id the tour wants shown, so its text and the JSON on screen agree. */
     wantedStage?: string | null;
   }
 
-  const { handoff = null, onshowRule, wantedStage = null }: Props = $props();
+  const { onshowRule, wantedStage = null }: Props = $props();
 
   // The tour names a stage; honouring it once the trace exists keeps the two in step. It also has
   // to open the right direction, or the tour points at a stage the rail is not showing.
@@ -28,7 +29,6 @@
   let trace = $state<Trace | null>(null);
   let error = $state<string | null>(null);
   let running = $state(false);
-  let store = $state(false);
 
   /** Which stage is on screen; the panel to its left is the stage it came from. */
   let selectedStep = $state(0);
@@ -53,15 +53,14 @@
   let fileInput = $state<HTMLInputElement | null>(null);
 
   $effect(() => {
+    // Not before the directory has answered: a trace sent without a patient gets the backend's
+    // default, and on a fresh browser that is not necessarily the patient the header then shows.
+    // Reading it here also re-runs this once it arrives.
+    if (!patient()) return;
     void (async () => {
       try {
         samples = await fetchTraceSamples();
         if (trace) return;
-        if (handoff) {
-          activeSample = null;
-          await traceJson(JSON.stringify(handoff));
-          return;
-        }
         const first = samples[0];
         if (first) await run(first);
       } catch (cause) {
@@ -79,10 +78,8 @@
     running = true;
     error = null;
     try {
-      trace = await runTrace(json, store);
-      // Land on the composition when there is one: that is the step worth looking at first.
-      const composition = trace.steps.findIndex((step) => step.id === 'composition');
-      show(composition >= 0 ? composition : trace.steps.length - 1);
+      trace = await runTrace(json);
+      show(landing(trace.steps));
     } catch (cause) {
       trace = null;
       error = cause instanceof Error ? cause.message : String(cause);
@@ -100,6 +97,23 @@
     input.value = '';
   }
 
+  /**
+   * Where a fresh trace opens.
+   *
+   * <p>On the composition when there is one: that is the step worth looking at first. Otherwise
+   * on the stage the way in stopped at — a rejected input is the whole lesson of that sample, and
+   * the way back exists whether or not the way in got anywhere, so "the last step" would open the
+   * GET with the patient selected and the inputs gone.
+   */
+  function landing(all: TraceStep[]): number {
+    const composition = all.findIndex((item) => item.id === 'composition');
+    if (composition >= 0) return composition;
+    const stopped = all.findIndex((item) => item.direction === 'in' && item.status === 'error');
+    if (stopped >= 0) return stopped;
+    const lastIn = all.map((item) => item.direction).lastIndexOf('in');
+    return lastIn >= 0 ? lastIn : all.length - 1;
+  }
+
   const activeSummary = $derived(samples.find((s) => s.id === activeSample)?.summary ?? null);
 
   const steps = $derived<TraceStep[]>(trace?.steps ?? []);
@@ -108,23 +122,44 @@
    * The stage this one came from — shown beside it, so every screen reads "this became that".
    *
    * <p>Not simply the one before it in the list. The pipeline is mostly a chain but not entirely:
-   * looking up who a reading is about reaches a different store and produces nothing the next
-   * stage is built from. Pairing a stage with whatever happens to precede it would make the Bundle
-   * look like it was made out of the Patient.
+   * looking up who a reading is about reaches a different store and produces nothing the next stage
+   * is built from. Those stages are branches, and they are skipped here — otherwise the Bundle
+   * would be shown as having been made out of the Patient. A branch itself has no "came from" at
+   * all: nothing in the chain became it, which is the whole reason it hangs off the line.
    */
   const previous = $derived.by<TraceStep | null>(() => {
-    if (!step) return null;
+    if (!step || step.branch) return null;
     for (let index = selectedStep - 1; index >= 0; index--) {
       const candidate = steps[index];
-      if (candidate && candidate.direction === step.direction) return candidate;
+      if (candidate && candidate.direction === step.direction && !candidate.branch)
+        return candidate;
     }
     return null;
   });
 
-  /** The stages of the half on screen, paired with their place in the whole run. */
-  const shown = $derived(
-    steps.map((item, index) => ({ item, index })).filter(({ item }) => item.direction === travel),
-  );
+  interface RailColumn {
+    item: TraceStep;
+    index: number;
+    branches: { item: TraceStep; index: number }[];
+  }
+
+  /**
+   * The half on screen as the rail draws it: the line, and what hangs off each stage of it.
+   *
+   * <p>Every stage keeps its place in the whole run, so the tour and the landing on the composition
+   * can still name one by index. A branch attaches to the stage before it — which is how the
+   * backend orders them, and the only thing the rail has to know.
+   */
+  const columns = $derived.by<RailColumn[]>(() => {
+    const built: RailColumn[] = [];
+    steps.forEach((item, index) => {
+      if (item.direction !== travel) return;
+      const previousColumn = built[built.length - 1];
+      if (item.branch && previousColumn) previousColumn.branches.push({ item, index });
+      else built.push({ item, index, branches: [] });
+    });
+    return built;
+  });
 
   /** True when a half has anything to show — the way back is empty until the mapping has run. */
   const hasTravel = (direction: 'in' | 'out'): boolean =>
@@ -134,9 +169,26 @@
   const hasJson = (candidate: TraceStep | null): boolean =>
     candidate !== null && candidate.json !== null && candidate.json !== undefined;
 
-  /** The correspondences only make sense on the step where openFHIR produced the composition. */
-  const links = $derived<MappingLink[]>(step?.id === 'composition' ? (trace?.links ?? []) : []);
+  /**
+   * The correspondences, on both of the steps openFHIR produced.
+   *
+   * <p>One rule per correspondence, one file, and openFHIR runs it in whichever direction it is
+   * asked for — so the same chips belong on the way back. Only these two steps have the FHIR and
+   * the openEHR document side by side, which is what a correspondence needs to be shown at all.
+   */
+  const links = $derived<MappingLink[]>(
+    step?.id === 'composition' || step?.id === 'roundtrip' ? (trace?.links ?? []) : [],
+  );
   const link = $derived<MappingLink | null>(links.find((l) => l.id === selectedLink) ?? null);
+
+  /**
+   * Which end of a correspondence belongs in a panel — decided by what the panel holds, not by
+   * which side of the screen it is on. The two swap places on the way back.
+   */
+  const pointerFor = (panel: TraceStep | null, chosen: MappingLink | null): string | null => {
+    if (!panel || !chosen) return null;
+    return (panel.standard === 'openehr' ? chosen.openehrPointer : chosen.fhirPointer) ?? null;
+  };
 
   const kindLabel = (kind: MappingLink['kind']): string => t(`inspector.kind.${kind}`);
 </script>
@@ -149,110 +201,138 @@
     </p>
   </header>
 
-  <div class="inputs">
-    {#each samples as sample (sample.id)}
+  <!-- Two operations, shown apart: a POST puts a reading in, a GET brings it back with the other
+     half of the record attached. Directly under the inputs, because it is the second choice a
+     reader makes: what goes in, then which half of the journey to look at. -->
+  <div class="travel" role="tablist" aria-label={t('inspector.travel')}>
+    {#each [['in', 'inspector.travel.in'], ['out', 'inspector.travel.out']] as const as [id, key] (id)}
       <button
         type="button"
-        class="sample"
-        class:active={activeSample === sample.id}
-        disabled={running}
-        onclick={() => run(sample)}
+        role="tab"
+        aria-selected={travel === id}
+        class:active={travel === id}
+        disabled={!hasTravel(id)}
+        onclick={() => {
+          travel = id;
+          const first = steps.findIndex((item) => item.direction === id);
+          if (first >= 0) show(first);
+        }}
       >
-        {sample.label}
+        {t(key)}
       </button>
     {/each}
-    <button type="button" class="sample own" disabled={running} onclick={() => fileInput?.click()}>
-      {t('inspector.ownFile')}
-    </button>
-    <input
-      bind:this={fileInput}
-      type="file"
-      accept="application/json,application/fhir+json,.json"
-      onchange={onFileChosen}
-      hidden
-    />
   </div>
 
-  {#if activeSummary}
-    <p class="summary">{activeSummary}</p>
+  {#if travel === 'in'}
+    <div class="inputs">
+      {#each samples as sample (sample.id)}
+        <button
+          type="button"
+          class="sample"
+          class:active={activeSample === sample.id}
+          disabled={running}
+          onclick={() => run(sample)}
+        >
+          {sample.label}
+        </button>
+      {/each}
+      <button
+        type="button"
+        class="sample own"
+        disabled={running}
+        onclick={() => fileInput?.click()}
+      >
+        {t('inspector.ownFile')}
+      </button>
+      <input
+        bind:this={fileInput}
+        type="file"
+        accept="application/json,application/fhir+json,.json"
+        onchange={onFileChosen}
+        hidden
+      />
+    </div>
+
+    {#if activeSummary}
+      <p class="summary">{activeSummary}</p>
+    {/if}
   {/if}
-
-  <div class="store">
-    <label>
-      <input type="checkbox" bind:checked={store} disabled={running} />
-      <span>{t('inspector.store.title')}</span>
-    </label>
-    <!-- A separate disclosure rather than one control doing two jobs: ticking the box and asking
-         what it means are different intentions. -->
-    <details>
-      <summary>{t('inspector.store.why')}</summary>
-      <p>{t('inspector.store.body')}</p>
-    </details>
-  </div>
 
   {#if error}
     <p class="error" role="alert">{error}</p>
   {:else if running && !trace}
     <p class="meta">{t('inspector.running')}</p>
   {:else if trace}
-    <p class="recognised">
-      {t('inspector.recognised')} <strong>{trace.inputLabel}</strong>.
-      {#if trace.stored}<span class="stored-note">{t('inspector.wrote')}</span>{/if}
-    </p>
-
-    <!-- Two operations, shown apart: a POST puts a reading in, a GET brings it back with the other
-         half of the record attached. -->
-    <div class="travel" role="tablist" aria-label={t('inspector.travel')}>
-      {#each [['in', 'inspector.travel.in'], ['out', 'inspector.travel.out']] as const as [id, key] (id)}
-        <button
-          type="button"
-          role="tab"
-          aria-selected={travel === id}
-          class:active={travel === id}
-          disabled={!hasTravel(id)}
-          onclick={() => {
-            travel = id;
-            const first = steps.findIndex((item) => item.direction === id);
-            if (first >= 0) show(first);
-          }}
-        >
-          {t(key)}
-        </button>
-      {/each}
-    </div>
-
-    <!-- A dry run has no EHRbase stage to end on and none to start from, and saying so beats
-         leaving a chain that looks like it lost a link. -->
-    {#if trace && !trace.stored}
-      <p class="dry-note">{travel === 'in' ? t('inspector.dry.in') : t('inspector.dry.out')}</p>
+    {#if travel === 'in'}
+      <p class="recognised">
+        {t('inspector.recognised')} <strong>{trace.inputLabel}</strong>.
+        <span class="dry-note">{t('inspector.dry')}</span>
+      </p>
     {/if}
 
     <ol class="rail">
-      {#each shown as { item, index }, position (item.id)}
+      {#each columns as column, position (column.item.id)}
+        {@const next = columns[position + 1]}
         <li>
-          <button
-            type="button"
-            class="stage"
-            data-standard={item.standard}
-            class:active={index === selectedStep}
-            class:failed={item.status === 'error'}
-            onclick={() => show(index)}
-          >
-            <span class="stage-index">{position + 1}</span>
-            <span class="stage-title">{item.title}</span>
-            <span class="stage-actor">{item.actor}</span>
-          </button>
+          <div class="line">
+            <button
+              type="button"
+              class="stage"
+              data-standard={column.item.standard}
+              class:active={column.index === selectedStep}
+              class:failed={column.item.status === 'error'}
+              onclick={() => show(column.index)}
+            >
+              <span class="stage-index">{position + 1}</span>
+              <span class="stage-title">{column.item.title}</span>
+              <!-- Only where no arrow can say it: every other stage is named by the arrow that
+                   leads into it, and printing it twice would make the actor look like a place. -->
+              {#if position === 0}
+                <span class="stage-actor">{column.item.actor}</span>
+              {/if}
+            </button>
+            <!-- The arrow lives on the line rather than between the columns, so a branch hanging
+                 below one of them never ends up with an arrow pointing at it. It is labelled with
+                 who does the step: a stage is a document, and openFHIR is not somewhere the
+                 reading is — it is what turns one document into the next. -->
+            {#if next}
+              <span class="arrow">
+                <span class="who">{next.item.actor}</span>
+                <span class="glyph" aria-hidden="true">→</span>
+              </span>
+            {/if}
+          </div>
+          {#each column.branches as branch (branch.item.id)}
+            <div class="aside">
+              <button
+                type="button"
+                class="stage branch"
+                data-standard={branch.item.standard}
+                class:active={branch.index === selectedStep}
+                class:failed={branch.item.status === 'error'}
+                onclick={() => show(branch.index)}
+              >
+                <span class="stage-title">{branch.item.title}</span>
+                <span class="stage-actor">{branch.item.actor}</span>
+              </button>
+            </div>
+          {/each}
         </li>
       {/each}
     </ol>
 
     {#if step}
       <article class="explanation">
-        <p>{step.explanation}</p>
+        {#if step.summary}
+          <p>{step.summary}</p>
+          <More><p>{step.explanation}</p></More>
+        {:else}
+          <p>{step.explanation}</p>
+        {/if}
         {#if step.call}
           <p class="call">
             <code>{step.call}</code>
-            {#if step.durationMs !== undefined}<span class="timing">{step.durationMs} ms</span>{/if}
+            {#if step.durationMs != null}<span class="timing">{step.durationMs} ms</span>{/if}
           </p>
         {/if}
         {#if step.query}
@@ -262,6 +342,12 @@
           <p class="note" class:bad={step.status === 'error'}>{step.note}</p>
         {/if}
       </article>
+
+      <!-- The one stage where both stores meet: the Bundle, taken apart again by where each
+           entry lives. It used to be a tab of its own; here it sits beside the JSON it explains. -->
+      {#if step.id === 'assembled' && step.json}
+        <StoreColumns record={recordOf(step.json)} />
+      {/if}
 
       {#if links.length}
         <section class="links">
@@ -304,7 +390,7 @@
               actor={previous.actor}
               standard={previous.standard}
               value={previous.json}
-              highlight={link?.fhirPointer ?? null}
+              highlight={pointerFor(previous, link)}
             />
             <!-- Left is always the stage this one came from, so the direction never varies: the
                  arrow says "became", which is the one thing two panels side by side do not. -->
@@ -315,7 +401,7 @@
             actor={step.actor}
             standard={step.standard}
             value={step.json}
-            highlight={link?.openehrPointer ?? null}
+            highlight={pointerFor(step, link)}
           />
         </div>
       {/if}
@@ -396,68 +482,20 @@
     max-width: 78ch;
   }
 
-  .store {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 14px;
-    font-size: 0.82rem;
-    color: var(--text-secondary);
-  }
-
-  .store label {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-  }
-
-  .store summary {
-    color: var(--text-muted);
-    cursor: pointer;
-  }
-
-  .store p {
-    margin: 8px 0 0;
-    max-width: 78ch;
-    color: var(--text-muted);
-  }
-
-  /* The explanation is wider than the row, so it gets its own line under both. */
-  .store details[open] {
-    flex-basis: 100%;
-  }
-
   .recognised {
     margin: 0;
     font-size: 0.85rem;
     color: var(--text-secondary);
   }
 
-  .stored-note {
-    color: var(--series-reading);
-  }
-
-  .map {
-    padding: 14px 16px 4px;
-    background: var(--surface-1);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-  }
-
   .dry-note {
-    margin: 0 0 12px;
-    max-width: 74ch;
-    color: var(--text-secondary);
-    font-size: 0.82rem;
-    line-height: 1.5;
+    color: var(--text-muted);
   }
 
   .travel {
     display: inline-flex;
     gap: 2px;
     padding: 2px;
-    margin-bottom: 12px;
     border: 1px solid var(--border);
     border-radius: 999px;
   }
@@ -488,7 +526,8 @@
     list-style: none;
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    /* Column gap is the arrow's own margin; the row gap is for when the line wraps. */
+    gap: 10px 0;
     margin: 0;
     /* Sticky because reading the JSON below and switching stage are the same activity, and the
        switcher scrolling away means scrolling back up for every step. */
@@ -499,16 +538,70 @@
     background: var(--page);
   }
 
-  /* The arrow between stages: this is a pipeline, not a menu. */
-  .rail li:not(:last-child)::after {
-    content: '→';
-    color: var(--text-muted);
-    margin-left: 8px;
-  }
-
+  /* A column: one stage of the line, and whatever hangs off it. */
   .rail li {
     display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .line {
+    display: flex;
     align-items: center;
+  }
+
+  /* The arrow between stages: this is a pipeline, not a menu — and the one place the actor
+     belongs, because what openFHIR and the backend do happens between two documents. */
+  .arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    margin: 0 9px;
+    color: var(--text-muted);
+  }
+
+  .arrow .who {
+    font-size: 0.68rem;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+
+  .arrow .glyph {
+    font-size: 0.95rem;
+    line-height: 0.9;
+  }
+
+  /* A branch hangs under the stage it belongs to rather than after it. The FHIR store is consulted
+     beside the journey; nothing on the line is made out of what it answers, and a stage drawn in
+     the line would say it was. */
+  .aside {
+    display: flex;
+    padding-left: 18px;
+  }
+
+  .branch {
+    position: relative;
+    margin-top: 9px;
+    border-top-style: dashed;
+    border-right-style: dashed;
+    border-bottom-style: dashed;
+  }
+
+  /* The corner: down out of the stage above, then across into this one. */
+  .branch::before {
+    content: '';
+    position: absolute;
+    left: -15px;
+    top: -14px;
+    bottom: 50%;
+    /* Wide enough to meet the button's own border rather than stopping just short of it. */
+    width: 15px;
+    /* Solid and muted rather than dashed: the dashes are on the stage itself, and two dashed
+       things next to each other read as one smudge at this size. */
+    border-left: 1px solid var(--text-muted);
+    border-bottom: 1px solid var(--text-muted);
+    border-bottom-left-radius: 5px;
   }
 
   .stage {

@@ -18,7 +18,7 @@ import org.springframework.stereotype.Component;
  * Builds and reads the HL7 FHIR R4 representation of a resting heart rate.
  *
  * <p>The codes here are not cosmetic: the FHIR Connect mapping in {@code pulse.model.yaml} keys off
- * {@code status=final}, {@code category=vital-signs} and SNOMED {@code 364075005} to decide that an
+ * LOINC {@code 40443-4}, {@code status=final} and {@code category=vital-signs} to decide that an
  * Observation belongs in the {@code openEHR-EHR-OBSERVATION.pulse.v2} archetype.
  */
 @Component

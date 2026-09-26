@@ -18,9 +18,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api")
 public class AboutController {
 
-    /** Named so a page can check for the one it needs rather than compare version numbers. */
+    /**
+     * Named so a page can check for the one it needs rather than compare version numbers.
+     *
+     * <p>{@code trace-journeys}: every trace step carries a direction and a branch flag, which the
+     * pipeline inspector draws as the way in and the way back. Without it the rail is empty and
+     * both direction tabs are disabled, which looks like a broken page rather than an old backend.
+     */
     private static final List<String> CAPABILITIES =
-            List.of("trace", "traffic", "composition-versioning", "manual-entry");
+            List.of("trace", "traffic", "composition-versioning", "manual-entry", "trace-journeys");
 
     @GetMapping("/about")
     public Map<String, Object> about() {

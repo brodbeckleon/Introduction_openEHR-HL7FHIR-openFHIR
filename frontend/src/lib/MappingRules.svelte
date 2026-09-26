@@ -42,7 +42,8 @@
   <p class="meta"><RichText text={t('rules.lede')} /></p>
 
   <ul>
-    {#each rules as rule (rule.file + rule.fromLine)}
+    <!-- A manual entry can write several paths from one block, so the line alone is not unique. -->
+    {#each rules as rule (rule.file + rule.fromLine + rule.fhir)}
       <!-- The indent belongs to the row, not the button: a width:100% button with a left margin
            overflows its container by exactly that margin. -->
       <li style="padding-left: {indentOf(rule)}px">

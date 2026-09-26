@@ -3,8 +3,11 @@ package com.example.heartrate.aql;
 import com.example.heartrate.config.Messages;
 import com.example.heartrate.openehr.EhrbaseClient;
 import com.example.heartrate.patient.EhrResolver;
+import com.example.heartrate.service.HeartRateService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +30,9 @@ public class AqlService {
 
     /** Enough to see the shape of an answer without turning the browser into a spreadsheet. */
     private static final int MAX_ROWS = 200;
+
+    /** The window the chart shows, which is what {@code $from} stands for in a query. */
+    private static final int CHART_DAYS = 30;
 
     private final EhrbaseClient ehrbase;
     private final Messages messages;
@@ -58,8 +64,11 @@ public class AqlService {
         try {
             // $ehrId is filled in rather than demanded: making people paste a uuid before their
             // first query would teach them nothing about AQL. Which uuid it is now depends on the
-            // patient the page is showing.
-            answer = ehrbase.queryRaw(trimmed, Map.of("ehrId", ehrResolver.ehrIdFor(patientId)));
+            // patient the page is showing. $from is the chart's own window, so the chart's query
+            // can be offered exactly as it runs rather than with the WHERE clause cut out.
+            answer = ehrbase.queryRaw(trimmed, Map.of(
+                    "ehrId", ehrResolver.ehrIdFor(patientId),
+                    "from", HeartRateService.startOfDay(LocalDate.now(ZoneOffset.UTC).minusDays(CHART_DAYS - 1L))));
         } catch (Exception e) {
             return AqlResult.failed(explain(e), millisSince(started));
         }

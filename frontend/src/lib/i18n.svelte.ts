@@ -35,7 +35,7 @@ type Dictionary = Record<string, string>;
 const EN: Dictionary = {
   'app.title': 'Heart rate monitor',
   'app.lede':
-    'Resting heart rates are exchanged as HL7 FHIR Observations, mapped by openFHIR, and stored in openEHR \u2014 while who they belong to is stored in FHIR, because openEHR has nowhere to put a name. The chart is the excuse; the point is what happens between those four.',
+    'Resting heart rates travel as HL7 FHIR, are translated by openFHIR and kept in openEHR — while who they belong to stays in FHIR. The chart is the excuse; the point is what happens between them.',
   'tab.overview': 'Overview',
   'tour.label': 'Guided tour',
   'tour.step': 'Step {0} of {1}',
@@ -51,40 +51,34 @@ const EN: Dictionary = {
 
   'tour.what.title': 'What this is',
   'tour.what.body':
-    'A heart rate monitor: one resting heart rate per day, thirty days of them, drawn as a line. That is the entire feature — and it is the excuse. Everything else here exists to show what it actually takes to store those numbers properly, which turns out to need three healthcare standards. That is what the rest of this tour is about.',
-  'tour.number.title': 'One number: 58',
-  'tour.number.body':
-    'There it is, in the field below. A resting heart rate, measured on one day. Storing it is trivial — any database does that. Storing it so a different hospital, or the same one in twenty years, still knows what it means is the actual problem. That is what these three standards are for.',
+    'A heart rate monitor: one resting heart rate per day — 58, in the field below. Storing it is trivial; storing it so another hospital, or this one in twenty years, still knows what it means takes three standards.',
   'tour.column.title': 'Why a database column is not enough',
   'tour.column.body':
-    'A column `bpm INT` holds 58. It does not hold: in what unit, at rest or under exertion, measured by whom, with what device, in what care setting. A colleague ten years from now can read the number and still not know what it means — and in medicine that is not a small problem.',
+    'A column bpm INT holds 58. It does not hold the unit, whether the patient was at rest, who measured it or with what. Ten years on, the number is still readable and its meaning is gone.',
   'tour.fhir.title': 'What HL7 FHIR contributes',
   'tour.fhir.body':
-    'FHIR makes the number say what it is. LOINC 40443-4 means “heart rate, at rest”; UCUM /min is the unit; the category marks it a vital sign. The meaning sits in codes, which is what lets the resource cross a system boundary and be understood on the other side. Look at what the backend built.',
+    'FHIR makes the number say what it is, in codes: LOINC 40443-4 means “heart rate, at rest”, UCUM /min is the unit, the category marks a vital sign. Codes are what let it cross a system boundary and still be understood.',
   'tour.openehr.title': 'What openEHR does differently',
   'tour.openehr.body':
-    'The same reading, another logic — and notice the LOINC code is gone. In openEHR the meaning is not in a code but in a place: the value sits inside the pulse archetype, an internationally agreed definition of what a pulse observation is. In exchange openEHR insists on things FHIR never sent: who recorded it, in what language, in what setting.',
+    'The same reading in openEHR, and the LOINC code is gone: the meaning is now a place, inside the pulse archetype. In exchange openEHR insists on what FHIR never sent — who recorded it, in what language, in what setting.',
   'tour.lost.title': 'Two models, not one in two formats',
   'tour.lost.body':
-    'Mapped back to FHIR, some of what went in does not return: the coding systems, the display names, the subject reference. openEHR kept what the archetype models, and everything beyond that had nowhere to live. This is not a bug to fix — it is what it means for two models to be genuinely different.',
+    'Mapped back to FHIR, not everything returns. openEHR kept what the archetype models; the mapping writes the LOINC code back as a constant, but the display names are gone. Not a bug — that is what two genuinely different models cost.',
   'tour.translate.title': 'So something has to translate',
   'tour.translate.body':
-    'That is openFHIR, and this is how it knows what to do: declarative rules saying which FHIR path corresponds to which openEHR path, and under what conditions. Not Java. Changing how the two models correspond means editing this YAML — and you can, right here, including breaking it on purpose to see what the rules were doing.',
+    'So something has to translate: openFHIR, following declarative rules — which FHIR path corresponds to which openEHR path, and when. Not Java but YAML, and you can edit it right here, including breaking it on purpose to see what a rule was doing.',
   'tour.template.title': 'What the model allows, and what is used',
   'tour.template.body':
-    'The third thing the mappings rest on: the operational template. EHRbase validates every composition against it, openFHIR resolves paths against it — and only ten of its twenty-three nodes are ever filled. Open the pulse observation and find the second event slot, an INTERVAL_EVENT named “Maximum” with a math_function: the model has room for the minimum, maximum and mean of a day, named and typed and ready. The mapping simply never writes it. The template says what is possible; the mappings decide what happens.',
+    'The model underneath: the operational template. EHRbase validates against it, openFHIR resolves paths in it — and only ten of its twenty-three nodes are used. The template says what is possible; the mappings decide what happens.',
   'tour.versions.title': 'The record does not forget',
   'tour.versions.body':
-    'Correct a reading and openEHR does not overwrite it — there is no overwrite. It adds a version and keeps the one before. That is why a clinical record can still answer “what did it say on the day someone acted on it?”, which an ordinary database cannot. Try it: record a day twice and open its history.',
-  'tour.traffic.title': 'Watch it happen',
-  'tour.traffic.body':
-    'Every call this application made to the two standards servers, newest first. Open one and you see the openEHR REST API as it really is: a COMPOSITION going to POST /ehr/{id}/composition, answered with 204 and a version uid in an ETag. A correction you just made is the PUT a few rows up. None of this is a diagram of how it might work — it is what happened.',
+    'Correct a reading and openEHR does not overwrite it — it adds a version and keeps the old one. On the wire that is a PUT with If-Match, and EHRbase answers with the next version. Every call listed here really happened.',
   'tour.query.title': 'And it stays queryable',
   'tour.query.body':
-    'AQL selects by archetype path, not by table column. The same query runs on any openEHR system that knows the archetype, and survives a restructuring of the database underneath. Run one — and try the example with a typo in the path, which is the failure mode worth meeting on purpose.',
+    'And it stays queryable: AQL selects by archetype path, not by table column, so the same query runs on any openEHR system that knows the archetype. Try the example with a typo in the path — a wrong path is not an error.',
   'tour.done.title': 'That is the whole idea',
   'tour.done.body':
-    'FHIR carries, openEHR remembers, openFHIR translates. Everything else in this app is detail about how. Underlined words explain themselves when you hover them, and the tour is in the Start here panel whenever you want it again.',
+    'FHIR carries, openEHR remembers, openFHIR translates. Everything else here is detail about how. Underlined words explain themselves; the tour is in the header whenever you want it again, and Build your own has the recipe for a measurement of your own.',
 
   'tab.pipeline': 'Pipeline inspector',
   'tab.traffic': 'Standards traffic',
@@ -93,11 +87,11 @@ const EN: Dictionary = {
 
   'mappings.title': 'The FHIR Connect mappings',
   'mappings.lede':
-    'Everything that decides how FHIR and openEHR correspond is in these three files. [[FHIR Connect]] is a declarative grammar, so changing the correspondence is editing YAML rather than writing code — and openFHIR re-reads it on request, with no rebuild and no restart.',
+    'Everything that decides how FHIR and openEHR correspond is in these three [[FHIR Connect]] files — YAML, not Java. Save a change and openFHIR maps with it from the next request; break one on purpose and watch where the pipeline gives up.',
   'mappings.focus': 'Opened at the rule behind “{0}”.',
   'rules.title': 'What becomes what',
   'rules.lede':
-    'Every rule these files declare, read out of them rather than written here — edit a mapping and this list follows. A [[Observation|FHIR]] path on the left, the [[archetype_node_id|openEHR path]] it corresponds to on the right. Pick one to find it in the file below.',
+    'Read out of the files, so it follows every edit: a [[Observation|FHIR]] path on the left, the [[archetype_node_id|openEHR path]] on the right. Pick one to find it below.',
   'rules.sets': 'writes',
   'inspector.openRule': 'Open the rule in {0}',
 
@@ -105,7 +99,7 @@ const EN: Dictionary = {
 
   'template.title': 'Template explorer',
   'template.lede':
-    'The operational template is the third thing the mappings depend on and the one the application never shows. It is what EHRbase validates a composition against and what openFHIR resolves paths against — the [[template_id|template]] narrows the [[archetype_id|archetypes]] to one specific use, and this is the result: every node a composition may have, its type, how often it may occur, and the path AQL would address it by.',
+    'The operational [[template_id|template]]: what EHRbase validates a composition against and openFHIR resolves paths in. Every node a composition may have, its type, how often it may occur, and the path AQL would use.',
   'template.usedHeadline': 'nodes of the template are used',
   'template.usedNote':
     'The other {0} are allowed and stay empty. That gap is normal — a template describes what may be recorded, not what is.',
@@ -117,11 +111,11 @@ const EN: Dictionary = {
   'template.expand': 'Expand',
   'template.collapse': 'Collapse',
   'template.closing':
-    'Worth finding: under the pulse observation there is a second event slot, an INTERVAL_EVENT called "Maximum" carrying a math_function. The model has room for the minimum, maximum and mean of a day — the mapping simply never fills it, because FHIR Connect as implemented cannot write a math_function. The template says what is possible; the mappings decide what happens.',
+    'Worth finding: an INTERVAL_EVENT called “Maximum” under the pulse observation. The model has room for it; the mapping never fills it.',
 
   'aql.title': 'AQL playground',
   'aql.lede':
-    'Run a query against the record and see what openEHR answers. [[AQL]] selects by [[archetype_node_id|archetype path]] rather than by table column, so a query written against the pulse archetype runs on any openEHR system that knows that archetype. It is read-only: there is no AQL statement that changes anything.',
+    'Run a query against the record. [[AQL]] selects by [[archetype_node_id|archetype path]], not by table column, and it is read-only: no AQL statement changes anything.',
   'aql.queryLabel': 'AQL query',
   'aql.run': 'Run',
   'aql.running': 'Running…',
@@ -135,7 +129,7 @@ const EN: Dictionary = {
 
   'tour.stores.title': 'Where the rest of it lives',
   'tour.stores.body':
-    'The last step showed openEHR keeping only what its archetype models. The patient is the same story: EHR_STATUS anchors a record on an identifier and has room for neither a name nor an address. So there is a second store \u2014 an ordinary FHIR server \u2014 and a patient record is assembled from both. One identifier joins them, and stopping either one leaves the other working. That is not a workaround; it is what having two models actually costs, and what it buys.',
+    'The patient is the same story: EHR_STATUS has room for an identifier, not a name. So names live in a second store, the FHIR store, and one identifier joins the halves. Here they meet in one Bundle — and either store can fail without the other.',
   'diagram.open.fhir': 'Open the pipeline inspector, where the FHIR Observation is shown',
   'diagram.open.openfhir': 'Open the mappings \u2014 the FHIR Connect rules openFHIR executes',
   'diagram.open.openehr':
@@ -143,32 +137,27 @@ const EN: Dictionary = {
   'inspector.travel': 'Direction',
   'inspector.travel.in': 'The way in · POST',
   'inspector.travel.out': 'The way back · GET',
-  'tab.record': 'Two stores',
-  'record.title': 'One record, two stores',
-  'record.lede':
-    'This is what a single patient record looks like when the clinical half lives in openEHR and the administrative half does not. The backend asks both and hands back one FHIR Bundle; neither store holds the other\u2019s part, and nothing in the Bundle says which came from where.',
   'record.fhirStore': 'FHIR store',
   'record.fhirStore.what':
-    'Name, gender, birth date, address. openEHR\u2019s EHR_STATUS anchors a record on an identifier and has room for nothing else \u2014 which is the entire reason this server exists.',
+    'Name, gender, birth date, address — what openEHR’s EHR_STATUS has no room for. One table in the backend’s own database.',
   'record.openehr': 'openEHR, via openFHIR',
   'record.openehr.what':
-    'The readings, stored as compositions and mapped back to FHIR on the way out. The id of each one is the openEHR versioned object uid, so no table translates between the two.',
+    'The readings, stored as compositions and mapped back to FHIR on the way out. Each id is the openEHR versioned object uid, so no table translates.',
   'record.version': 'openEHR\u2019s version of this composition, surfaced as FHIR meta.versionId',
   'record.more': 'and {0} more',
   'record.note':
-    'Assembled from {0} entries. Stop the FHIR store and the chart keeps drawing \u2014 only the names go missing, because the two halves fail independently.',
-  'record.loading': 'Assembling\u2026',
+    'Stop the FHIR store’s database and the chart keeps drawing: the patients fall back to the configuration, because the two halves fail independently.',
   'lang.label': 'Language',
   'patient.label': 'Patient',
   'patient.ehr': 'The openEHR record this patient\u2019s readings are stored in',
 
   'stale.title': 'The backend is running an older build than this page.',
   'stale.body':
-    'Restart it with `cd backend && ./gradlew bootRun` — it runs on the host, so `docker compose` does not restart it. Until then corrections will not show up in the chart, and the pipeline inspector and traffic console stay empty. Nothing is lost in the meantime; the record has every reading you entered.',
+    'Rebuild it: `docker compose up -d --build backend` for the container, or restart `cd backend && ./gradlew bootRun` if it runs on the host — a plain `docker compose up` keeps the old image. Until then the pipeline inspector shows no stages and its direction tabs stay disabled, and corrections may not show up in the chart. Nothing is lost in the meantime; the record has every reading you entered.',
 
   'start.title': 'Start here',
   'start.lede':
-    'This app stores one number per day — and it takes three standards to do it. [[Observation|HL7 FHIR]] carries the reading in and out, [[openFHIR]] translates, and [[EHRbase|openEHR]] keeps the record. The chart below is only the proof that it worked; the two other tabs are where you can watch it happen.',
+    'One number per day, and it takes three standards: [[Observation|HL7 FHIR]] carries it in and out, [[openFHIR]] translates, [[EHRbase|openEHR]] keeps the record. The chart is only the proof; the tabs show how.',
   'start.step1.body':
     'They arrive as a FHIR [[Bundle]] and are stored as openEHR compositions. Nothing takes a shortcut into the database.',
   'start.step2.body':
@@ -181,21 +170,12 @@ const EN: Dictionary = {
   'start.step2.action': 'Open the pipeline inspector',
   'start.step3.title': 'Watch the servers actually talk',
   'start.step3.body':
-    'Every call to openFHIR and EHRbase, with its request and response. This is the openEHR REST API as it really is, not as a spec describes it.',
+    'Every call to openFHIR and EHRbase, with its request and response — the backend handing openFHIR its mappings included. This is the openEHR REST API as it really is, not as a spec describes it.',
   'start.step3.action': 'Open the standards traffic',
   'start.hide': 'Hide',
   'start.show': 'Show the introduction again',
   'start.showShort': 'Introduction',
   'start.hideLabel': 'Hide this introduction',
-
-  'stat.resting': 'Resting heart rate',
-  'stat.average': '{0}-day average',
-  'stat.coverage': 'Coverage',
-  'stat.noReadings': 'No readings yet',
-  'stat.needsTwo': 'Needs two days of readings',
-  'stat.days': '/ {0} days',
-  'stat.coverageNote': 'days with a recorded resting heart rate',
-  'stat.delta': '{0} bpm vs. the days before',
 
   'chart.title': 'Resting heart rate, last {0} days',
   'chart.subtitle':
@@ -207,13 +187,12 @@ const EN: Dictionary = {
 
   'manual.title': 'Record a reading',
   'manual.lede':
-    'One resting heart rate for one day. It does not take a shortcut into the database: the browser builds a FHIR Observation and posts it to /fhir/Observation, so a typed-in reading travels the same road as one from an external system — through openFHIR’s mappings and into openEHR.',
+    'One resting heart rate for one day, with no shortcut: the browser builds a FHIR Observation and posts it to /fhir/Observation, the same road a reading from another system takes.',
   'manual.date': 'Date',
   'manual.rate': 'Resting heart rate',
   'manual.store': 'Store it',
   'manual.correct': 'Correct it',
   'manual.storing': 'Storing…',
-  'manual.trace': 'Trace it instead',
   'manual.invalid': 'A date and a rate between 20 and 250 bpm.',
   'manual.nothingYet': 'Nothing recorded for that day yet.',
   'manual.existing':
@@ -224,13 +203,13 @@ const EN: Dictionary = {
   'manual.showResource': 'Show the resource this sends',
   'manual.hideResource': 'Hide the resource this sends',
   'manual.resourceNote':
-    'Four of those fields are not decoration. status, category and the LOINC code are what pulse.model.yaml matches on to decide this is a resting heart rate at all, and the UCUM unit is what the pulse archetype constrains. Change any of them and the mapping stops recognising it — the pipeline inspector’s third sample does exactly that.',
+    'status, category and the LOINC code are what the mapping matches on; the UCUM unit is what the archetype constrains. Change one and the mapping no longer recognises the reading — the inspector’s third sample does exactly that.',
   'manual.builtInBrowser': 'built in the browser',
 
   'history.show': 'Show what this day used to say',
   'history.hide': 'Hide what this day used to say',
   'history.lede':
-    'openEHR has no overwrite. Correcting a reading adds a version to the same [[COMPOSITION]] and keeps the one before it, so the record can still answer "what did it say on the day someone acted on it?" — which is the whole reason a clinical data repository is not an ordinary database.',
+    'openEHR has no overwrite: a correction adds a version to the same [[COMPOSITION]] and keeps the one before, so the record can still answer “what did it say on the day someone acted on it?”',
   'history.none': 'Nothing recorded for that day.',
   'history.inForce': 'in force',
   'history.corrections':
@@ -244,7 +223,7 @@ const EN: Dictionary = {
   'exchange.title': 'FHIR exchange',
   'exchange.lede.1': 'Load sample data',
   'exchange.lede.2':
-    'asks the backend for a month of made-up readings as a FHIR Bundle and imports it — generated for today on every call, so it cannot go stale the way a checked-in file would. Or import a Bundle of your own. Export gives you everything stored, again as a Bundle: both directions run through the same openFHIR mappings, so what comes out is produced by the same rules that read what went in.',
+    'asks the backend for a month of made-up readings, generated for today, and imports them as a FHIR Bundle. Export runs the same openFHIR mappings the other way.',
   'exchange.loadSample': 'Load sample data',
   'exchange.importing': 'Importing…',
   'exchange.import': 'Import a file',
@@ -260,20 +239,11 @@ const EN: Dictionary = {
 
   'inspector.title': 'Pipeline inspector',
   'inspector.lede':
-    'The import does this every time and throws it all away. Here nothing is thrown away: pick an input, then walk the stages. They are two journeys, not one \u2014 a POST puts the reading in, a GET brings it back, and only on the way back does the other half of the record join it. Nothing is written unless you ask for it.',
-  'inspector.dry.in':
-    'This was a dry run, so the way in stops at the record it would have been written to. Tick \u201cAlso store it in the record\u201d to see EHRbase validate and keep it.',
-  'inspector.dry.out':
-    'Nothing was stored, so there was nothing to read back: this is the same composition mapped in the other direction, not one that came out of EHRbase. Tick \u201cAlso store it in the record\u201d and the way back starts with the AQL that fetches it.',
+    'The import does this and throws it all away; here every stage is kept. Two journeys: a POST carries the reading in and ends at the write it would make, a GET brings back what the record holds.',
+  'inspector.dry': 'Nothing was written \u2014 a trace only reads.',
   'inspector.ownFile': 'Your own file…',
-  'inspector.ownFileSummary': 'Any FHIR Bundle or Observation.',
-  'inspector.store.title': 'Also store it in the record',
-  'inspector.store.why': 'What does that change?',
-  'inspector.store.body':
-    'A trace is a dry run by default: it maps the reading through openFHIR and shows you the result, but writes nothing — so you can look as often as you like without filling the record with samples. Tick this and it really is stored, which adds two more stages: the write to EHRbase and the AQL read-back.',
   'inspector.running': 'Running…',
   'inspector.recognised': 'Recognised as',
-  'inspector.wrote': 'This run wrote to the record.',
   'inspector.links.title': 'What became what',
   'inspector.links.lede':
     'Pick one to light it up on both sides, and to see the FHIR Connect rule that put it there.',
@@ -282,27 +252,27 @@ const EN: Dictionary = {
   'inspector.kind.generated': 'not from FHIR',
   'inspector.diff.title': 'What the round trip did not bring back',
   'inspector.diff.lede':
-    'Every line here is a field FHIR carried that the openEHR model has no place for. Exporting gives you correct FHIR, not the same FHIR.',
+    'Correct FHIR, not the same FHIR. lost marks what the mapping chose not to write back; added marks what openEHR gave the reading that FHIR never sent, such as its version.',
 
   'mapping.title': 'The rule that did it',
-  'mapping.lede':
-    'Declarative FHIR Connect YAML from openfhir-bootstrap/ — no Java involved. Editing a file here writes the real one and makes openFHIR re-read it, so you can change how the two models correspond, or break it on purpose and watch exactly where the pipeline gives up. Everything is one Reset away from how it shipped.',
   'mapping.edit': 'Edit this mapping',
-  'mapping.save': 'Save and reload openFHIR',
+  'mapping.save': 'Save and hand it to openFHIR',
   'mapping.saving': 'Saving…',
   'mapping.cancel': 'Cancel',
   'mapping.reset': 'Reset to the shipped version',
   'mapping.edited': 'This file has been edited.',
-  'mapping.savedOk': 'Saved, and openFHIR reloaded its mappings. Run a trace to see what changed.',
+  'mapping.savedOk': 'Saved, and openFHIR took the new version. Run a trace to see what changed.',
   'mapping.savedBad':
-    'Saved, but openFHIR would not load it: {0}. It is still running with the mappings it read last.',
+    'Saved, but openFHIR did not take it: {0}. It is still mapping with the version it had.',
   'mapping.wasReset': 'Back to the version this application shipped with.',
   'mapping.noDetail': 'no detail given',
 
   'traffic.title': 'Standards traffic',
   'traffic.lede':
-    'Every call this service made to the two standards servers, newest first. This is the openEHR REST API and [[openFHIR]]’s mapping API as they really are — a [[COMPOSITION]] being POSTed to /ehr/{id}/composition, an [[AQL]] query being answered, a [[template_id|template]] upload that answers 409 because the template is already there. Headers are not recorded: [[EHRbase]] runs with basic auth, and its credentials have no business in a browser panel.',
-  'traffic.both': 'Both',
+    'Every call the backend made to openFHIR and [[EHRbase]], newest first — the openEHR REST API as it really is, not as a spec describes it.',
+  'traffic.more':
+    'A [[template_id|template]] upload that EHRbase answers with 409 means it already has it — and it keeps the old version. On every start the backend hands openFHIR the template and the mappings: a GET to find what it holds, a PUT to replace it. The patients are not here: they are the backend’s own database, and reading that is a query, not a call. Headers are not recorded — EHRbase runs with basic auth, and its credentials have no business in a browser panel.',
+  'traffic.both': 'All',
   'traffic.live': 'Follow live',
   'traffic.clear': 'Clear',
   'traffic.empty':
@@ -314,8 +284,10 @@ const EN: Dictionary = {
   'traffic.failed': 'failed',
 
   'explainer.stores':
-    'Three standards, but two stores: the readings are openEHR compositions, and who they belong to is an ordinary FHIR resource. One identifier joins them \u2014 see how they come back together.',
-  'explainer.stores.link': 'Two stores',
+    'Three standards, two stores: the readings are openEHR compositions, the patient an ordinary FHIR resource, joined by one identifier.',
+  'explainer.stores.link': 'See them meet in the pipeline',
+  'explainer.backend':
+    'Every arrow is the backend: it hands FHIR to openFHIR, writes the result to EHRbase and reads it back with AQL. The chart reads AQL directly; only FHIR going in or out is mapped.',
   'diagram.alt':
     'HL7 FHIR carries the reading in, openFHIR maps it, openEHR stores it — and back out again.',
   'diagram.fhir.role': 'exchange · who it is about',
@@ -323,7 +295,8 @@ const EN: Dictionary = {
   'diagram.openehr.role': 'persistence · EHRbase',
   'diagram.import': 'import',
   'diagram.export': 'export',
-  'diagram.store': 'store',
+  'diagram.write': 'backend writes',
+  'diagram.read': 'backend · AQL',
   'diagram.fhir.caption':
     'Says what a value means,|in codes. Also stores who|it is about \u2014 openEHR cannot.',
   'diagram.openfhir.caption':
@@ -335,12 +308,101 @@ const EN: Dictionary = {
   'panel.copy': 'Copy',
   'panel.copied': 'Copied',
   'panel.copyFailed': 'Could not copy',
+  more: 'More',
+
+  'tab.build': 'Build your own',
+  'build.title': 'Build your own',
+  'build.lede':
+    'For building the same structure around a measurement of your own: what it is made of, the order to change things in, and where it goes wrong. Every step points at its finished example here.',
+  'build.pieces.title': 'What it is made of',
+  'build.pieces.lede':
+    'Three pieces are the structure — keep their roles and you have the same architecture. The backend is the part you write. The versions are exact, and checked against the files that pin them.',
+  'build.structure': 'structure',
+  'build.application': 'application',
+  'build.pinnedIn': 'Pinned in',
+  'build.docs': 'Documentation',
+  'build.piece.ehrbase.name': 'EHRbase',
+  'build.piece.ehrbase.role':
+    'The openEHR clinical data repository. It validates every [[COMPOSITION]] against the template, keeps every version of it, and answers [[AQL]]. The readings live here and nowhere else.',
+  'build.piece.openfhir.name': 'openFHIR',
+  'build.piece.openfhir.role':
+    'Translates between FHIR and openEHR by the [[FHIR Connect]] mappings the backend hands it over REST. Its version matters most: a mapping can only express what it implements — 3.0.1 cannot write a math_function.',
+  'build.piece.fhirStore.name': 'FHIR store',
+  'build.piece.fhirStore.role':
+    'The administrative half: the patients, with the names and addresses openEHR has no room for. No readings. A database, not a server — one table in the backend’s own Postgres.',
+  'build.piece.backend.name': 'Backend',
+  'build.piece.backend.role':
+    'The one service in the middle: it hands FHIR to openFHIR, stores the result in EHRbase, reads it back with AQL and keeps the patients. Everything that knows it is about heart rates is in here.',
+  'build.steps.title': 'Your own measurement, step by step',
+  'build.steps.lede':
+    'Say body weight instead of a resting heart rate. The order matters: each step builds on the one before, and each has a finished example here to look at first.',
+  'build.files': 'Files this step changes',
+  'build.step.archetype.title': 'Find the archetype',
+  'build.step.archetype.body':
+    'Look your measurement up in the openEHR Clinical Knowledge Manager first: body weight is openEHR-EHR-OBSERVATION.body_weight.v2. An [[archetype_id|archetype]] is worth something because others use the same one.',
+  'build.step.archetype.action': 'The pulse archetype in the template explorer',
+  'build.step.template.title': 'Build a template and export it',
+  'build.step.template.body':
+    'In the Archetype Designer, put the archetype into a composition, constrain it to what you record, and export an operational template (ADL 1.4). Replace the one .opt below, and its [[template_id]] in application.yml.',
+  'build.step.template.action': 'What a template allows, and what is used',
+  'build.step.fhir.title': 'Decide what it looks like in FHIR',
+  'build.step.fhir.body':
+    'Which resource, which code, which unit. The FHIR vital-signs profile settles it: body weight is an [[Observation]] with [[LOINC]] 29463-7 in kg. The mapping will recognise your measurement by these codes.',
+  'build.step.fhir.action': 'The heart rate as an Observation',
+  'build.step.mappings.title': 'Write the mappings',
+  'build.step.mappings.body':
+    'Copy the three heart rate files and change them: the context names the template, the composition mapping routes Bundle entries, the model pairs FHIR paths with archetype paths and lists the codes that recognise the resource.',
+  'build.step.mappings.action': 'The heart rate’s mappings',
+  'build.step.backend.title': 'Teach the backend the new measurement',
+  'build.step.backend.body':
+    'The backend is the one piece that knows it is dealing with heart rates. Everything in these files that says pulse or 40443-4 has to change.',
+  'build.step.load.title': 'Load it, and try it before storing anything',
+  'build.step.load.body':
+    'A backend start hands the template to EHRbase and openFHIR, and the mappings to openFHIR. The second command shows what openFHIR holds; the last sends it a Bundle directly — an empty composition means a condition did not match.',
+  'build.step.load.action': 'The same calls in the traffic console',
+  'build.step.query.title': 'Query it with AQL',
+  'build.step.query.body':
+    'Change the archetype in CONTAINS and the path in SELECT of the chart’s query. Copy the path from the template explorer — a wrong path in [[AQL]] is not an error, just a column of nulls.',
+  'build.step.query.action': 'Try it in the AQL playground',
+  'build.pitfalls.title': 'Where it goes wrong',
+  'build.pitfalls.lede':
+    'What these have in common: the symptom points somewhere other than the cause. Guess the cause before you open one.',
+  'build.pitfall.template.symptom': 'A changed template has no effect',
+  'build.pitfall.template.cause':
+    'EHRbase keeps the first template it is given under an id and answers every later upload with 409, which the backend takes to mean “already there”. openFHIR takes the new version; EHRbase does not. Give a changed template a new [[template_id]], such as heartrate_monitor.v2.',
+  'build.pitfall.stale.symptom': 'openFHIR still maps with the old version',
+  'build.pitfall.stale.cause':
+    'openFHIR keeps what it is given in MongoDB and never looks at the files. The backend hands them over when it starts and when the editor saves one — a file you change in an editor of your own reaches openFHIR on the next backend start, not before.',
+  'build.pitfall.empty.symptom': 'openFHIR answers with an empty composition',
+  'build.pitfall.empty.cause':
+    'No condition in the model mapping matched. The resource is valid FHIR and openFHIR is fine; the resource just does not carry a code the mapping requires. Compare the two character by character.',
+  'build.pitfall.interval.symptom': 'A minimum, maximum or mean will not map',
+  'build.pitfall.interval.cause':
+    'An [[INTERVAL_EVENT]] needs a math_function, and FHIR Connect as openFHIR 3.0.1 implements it cannot write one. Check what the version you run can do before designing a template around it.',
+  'build.pitfall.nulls.symptom': 'Every AQL value comes back null',
+  'build.pitfall.nulls.cause':
+    'The path does not exist. [[AQL]] does not treat a wrong path as an error: the query matches the observations and finds nothing at that path.',
+  'build.pitfall.dates.symptom': 'An AQL date filter matches nothing',
+  'build.pitfall.dates.cause':
+    'EHRbase compares [[DV_DATE_TIME]] bounds as text. 2026-09-08T00:00Z is valid ISO 8601 and silently matches nothing; write the seconds out, 2026-09-08T00:00:00Z.',
+  'build.pitfall.versions.symptom': 'Every version in a history shows the same value',
+  'build.pitfall.versions.cause':
+    'The version uid belongs in the path, …/version/{uid}. Passed as ?version_uid= it is accepted, and EHRbase answers with the latest version every time.',
+  'build.pitfall.port.symptom': 'Backend changes do not show up',
+  'build.pitfall.port.cause':
+    'An older backend still holds port 18080. ./gradlew bootRun fails with “Port 18080 was already in use”, the message scrolls past, and the old build keeps answering. This page notices when the backend is older than itself, and says so.',
+  'build.pitfall.linux.symptom': 'On Linux, a container cannot reach the host',
+  'build.pitfall.linux.cause':
+    'host.docker.internal resolves on its own only in Docker Desktop. On Linux the service needs extra_hosts: host.docker.internal:host-gateway, as the frontend has in docker-compose.yml.',
+  'build.footer':
+    'Installing it, the ports and what your machine needs are in the README. It is MIT-licensed: take it apart and build on it.',
+  'build.footer.readme': 'README on GitHub',
 };
 
 const DE: Dictionary = {
   'app.title': 'Ruhepuls-Monitor',
   'app.lede':
-    'Ruhepulse werden als HL7-FHIR-Observations ausgetauscht, von openFHIR gemappt und in openEHR gespeichert \u2014 w\u00e4hrend in FHIR liegt, zu wem sie geh\u00f6ren, weil openEHR f\u00fcr einen Namen keinen Platz hat. Der Chart ist nur der Vorwand; worum es geht, passiert zwischen diesen vieren.',
+    'Ruhepulse reisen als HL7 FHIR, werden von openFHIR übersetzt und in openEHR gespeichert — während in FHIR bleibt, zu wem sie gehören. Der Chart ist nur der Vorwand; worum es geht, passiert dazwischen.',
   'tab.overview': 'Übersicht',
   'tour.label': 'Geführte Tour',
   'tour.step': 'Schritt {0} von {1}',
@@ -356,40 +418,34 @@ const DE: Dictionary = {
 
   'tour.what.title': 'Worum es sich handelt',
   'tour.what.body':
-    'Ein Ruhepuls-Monitor: ein Ruhepuls pro Tag, dreißig Tage davon, als Linie gezeichnet. Das ist die ganze Funktion — und sie ist der Vorwand. Alles andere hier gibt es, um zu zeigen, was es wirklich braucht, um diese Zahlen ordentlich zu speichern. Und dafür braucht es drei Standards aus dem Gesundheitswesen. Darum geht es im Rest dieser Tour.',
-  'tour.number.title': 'Eine Zahl: 58',
-  'tour.number.body':
-    'Da steht sie, im Feld darunter. Ein Ruhepuls, an einem Tag gemessen. Ihn zu speichern ist trivial — das kann jede Datenbank. Ihn so zu speichern, dass ein anderes Krankenhaus, oder dasselbe in zwanzig Jahren, noch weiß, was er bedeutet, ist das eigentliche Problem. Dafür sind diese drei Standards da.',
+    'Ein Ruhepuls-Monitor: ein Ruhepuls pro Tag — 58, im Feld darunter. Ihn zu speichern ist trivial; ihn so zu speichern, dass ein anderes Krankenhaus oder dasselbe in zwanzig Jahren noch weiß, was er bedeutet, braucht drei Standards.',
   'tour.column.title': 'Warum eine Datenbankspalte nicht reicht',
   'tour.column.body':
-    'Eine Spalte `bpm INT` enthält 58. Sie enthält nicht: in welcher Einheit, in Ruhe oder unter Belastung, von wem gemessen, mit welchem Gerät, in welchem Versorgungskontext. Ein Kollege kann die Zahl in zehn Jahren lesen und trotzdem nicht wissen, was sie bedeutet — und in der Medizin ist das kein kleines Problem.',
+    'Eine Spalte bpm INT enthält 58. Sie enthält nicht die Einheit, ob in Ruhe gemessen wurde, von wem und womit. Zehn Jahre später ist die Zahl noch lesbar und ihre Bedeutung weg.',
   'tour.fhir.title': 'Was HL7 FHIR beiträgt',
   'tour.fhir.body':
-    'FHIR lässt die Zahl sagen, was sie ist. LOINC 40443-4 heißt „Herzfrequenz in Ruhe", UCUM /min ist die Einheit, die Kategorie macht sie zum Vitalparameter. Die Bedeutung steckt in Codes — und genau das erlaubt der Ressource, eine Systemgrenze zu überqueren und drüben verstanden zu werden. Sieh dir an, was das Backend gebaut hat.',
+    'FHIR lässt die Zahl in Codes sagen, was sie ist: LOINC 40443-4 heißt „Herzfrequenz in Ruhe“, UCUM /min ist die Einheit, die Kategorie macht sie zum Vitalparameter. Codes lassen sie eine Systemgrenze überqueren und drüben verstanden werden.',
   'tour.openehr.title': 'Was openEHR anders macht',
   'tour.openehr.body':
-    'Dieselbe Messung, andere Logik — und der LOINC-Code ist verschwunden. In openEHR steckt die Bedeutung nicht in einem Code, sondern an einem Ort: der Wert liegt im Puls-Archetyp, einer international abgestimmten Definition dessen, was eine Puls-Observation ist. Dafür verlangt openEHR Dinge, die FHIR nie mitschickte: wer hat aufgezeichnet, in welcher Sprache, in welchem Kontext.',
+    'Dieselbe Messung in openEHR, und der LOINC-Code ist weg: Die Bedeutung ist jetzt ein Ort, im Puls-Archetyp. Dafür verlangt openEHR, was FHIR nie geschickt hat — wer es erfasst hat, in welcher Sprache, in welchem Kontext.',
   'tour.lost.title': 'Zwei Modelle, nicht ein Modell in zwei Formaten',
   'tour.lost.body':
-    'Zurückgemappt nach FHIR kommt nicht alles wieder: die Kodiersysteme, die Anzeigenamen, der Patientenbezug. openEHR hat behalten, was der Archetyp modelliert, und alles darüber hinaus hatte keinen Platz. Das ist kein Fehler, den man behebt — das ist, was es heißt, dass zwei Modelle wirklich verschieden sind.',
+    'Zurück nach FHIR gemappt, kommt nicht alles wieder. openEHR hat behalten, was der Archetyp modelliert; das Mapping schreibt den LOINC-Code als Konstante zurück, die Anzeigenamen aber fehlen. Kein Fehler — das kosten zwei wirklich verschiedene Modelle.',
   'tour.translate.title': 'Also muss jemand übersetzen',
   'tour.translate.body':
-    'Das ist openFHIR, und so weiß es, was zu tun ist: deklarative Regeln, die sagen, welcher FHIR-Pfad welchem openEHR-Pfad entspricht und unter welchen Bedingungen. Kein Java. Die Entsprechung zu ändern heißt, dieses YAML zu bearbeiten — und das kannst du hier, inklusive absichtlich kaputtmachen, um zu sehen, was die Regeln eigentlich taten.',
+    'Also muss jemand übersetzen: openFHIR, nach deklarativen Regeln — welcher FHIR-Pfad welchem openEHR-Pfad entspricht, und wann. Kein Java, sondern YAML, und du kannst es hier bearbeiten, auch absichtlich kaputt, um zu sehen, was eine Regel getan hat.',
   'tour.template.title': 'Was das Modell erlaubt und was benutzt wird',
   'tour.template.body':
-    'Das dritte, worauf die Mappings aufbauen: das operationale Template. EHRbase validiert jede Composition dagegen, openFHIR löst Pfade daran auf — und nur zehn seiner dreiundzwanzig Knoten werden je befüllt. Klapp die Puls-Observation auf und such den zweiten Ereignis-Slot, ein INTERVAL_EVENT namens „Maximum" mit einer math_function: Das Modell hat Platz für Minimum, Maximum und Mittelwert eines Tages, benannt, typisiert, fertig. Das Mapping schreibt ihn nur nie. Das Template sagt, was möglich ist; die Mappings entscheiden, was passiert.',
+    'Das Modell darunter: das Operational Template. EHRbase prüft dagegen, openFHIR löst Pfade darin auf — und nur zehn seiner dreiundzwanzig Knoten werden genutzt. Das Template sagt, was möglich ist; die Mappings entscheiden, was passiert.',
   'tour.versions.title': 'Die Akte vergisst nicht',
   'tour.versions.body':
-    'Korrigiert man eine Messung, überschreibt openEHR sie nicht — es gibt kein Überschreiben. Es legt eine Version an und behält die davor. Deshalb kann eine klinische Akte weiterhin beantworten: „Was stand dort an dem Tag, an dem jemand danach gehandelt hat?" Eine gewöhnliche Datenbank kann das nicht. Probier es: denselben Tag zweimal erfassen und die Historie öffnen.',
-  'tour.traffic.title': 'Dabei zusehen',
-  'tour.traffic.body':
-    'Jeder Aufruf, den diese Anwendung an die beiden Standards-Server gemacht hat, neueste zuerst. Klapp einen auf, und du siehst die openEHR-REST-API, wie sie wirklich ist: eine COMPOSITION per POST an /ehr/{id}/composition, beantwortet mit 204 und einer Version-UID im ETag. Eine Korrektur, die du gerade gemacht hast, ist das PUT ein paar Zeilen weiter oben. Nichts davon ist ein Schaubild, wie es funktionieren könnte — es ist, was passiert ist.',
+    'Korrigiert man eine Messung, überschreibt openEHR sie nicht — es legt eine Version an und behält die alte. Auf der Leitung ist das ein PUT mit If-Match, und EHRbase antwortet mit der nächsten Version. Jeder Aufruf hier ist wirklich passiert.',
   'tour.query.title': 'Und sie bleibt abfragbar',
   'tour.query.body':
-    'AQL selektiert über Archetyp-Pfade, nicht über Tabellenspalten. Dieselbe Abfrage läuft auf jedem openEHR-System, das den Archetyp kennt, und übersteht einen Umbau der Datenbank darunter. Führ eine aus — und probier das Beispiel mit dem Tippfehler im Pfad, das ist der Fehlermodus, den man lieber absichtlich kennenlernt.',
+    'Und sie bleibt abfragbar: AQL selektiert über Archetyp-Pfade statt über Tabellenspalten, deshalb läuft dieselbe Abfrage auf jedem openEHR-System, das den Archetyp kennt. Probier das Beispiel mit dem Tippfehler im Pfad — ein falscher Pfad ist kein Fehler.',
   'tour.done.title': 'Das ist die ganze Idee',
   'tour.done.body':
-    'FHIR transportiert, openEHR erinnert, openFHIR übersetzt. Alles andere in dieser App ist Detail dazu, wie. Unterstrichene Wörter erklären sich beim Draufzeigen, und die Tour findest du jederzeit wieder im „Hier anfangen"-Panel.',
+    'FHIR transportiert, openEHR erinnert, openFHIR übersetzt. Alles andere hier ist Detail dazu, wie. Unterstrichene Wörter erklären sich selbst; die Tour findest du jederzeit oben im Header, und unter „Nachbauen“ steht das Rezept für einen eigenen Messwert.',
 
   'tab.pipeline': 'Pipeline-Inspector',
   'tab.traffic': 'Standards-Verkehr',
@@ -398,11 +454,11 @@ const DE: Dictionary = {
 
   'mappings.title': 'Die FHIR-Connect-Mappings',
   'mappings.lede':
-    'Alles, was darüber entscheidet, wie FHIR und openEHR einander entsprechen, steht in diesen drei Dateien. [[FHIR Connect]] ist eine deklarative Grammatik. Die Entsprechung zu ändern heißt also YAML bearbeiten statt Code schreiben — und openFHIR liest es auf Zuruf neu ein, ohne Rebuild und ohne Neustart.',
+    'Alles, was entscheidet, wie FHIR und openEHR einander entsprechen, steht in diesen drei [[FHIR Connect]]-Dateien — YAML, kein Java. Speicherst du eine Änderung, mappt openFHIR ab der nächsten Anfrage damit; mach eine absichtlich kaputt und sieh zu, wo die Pipeline aufgibt.',
   'mappings.focus': 'Geöffnet bei der Regel hinter „{0}".',
   'rules.title': 'Was wird wozu',
   'rules.lede':
-    'Jede Regel, die diese Dateien deklarieren — aus ihnen gelesen, nicht hier hingeschrieben: bearbeite ein Mapping, und die Liste folgt. Links ein [[Observation|FHIR]]-Pfad, rechts der [[archetype_node_id|openEHR-Pfad]], dem er entspricht. Wähle eine aus, um sie in der Datei darunter zu finden.',
+    'Aus den Dateien gelesen, folgt also jeder Bearbeitung: links ein [[Observation|FHIR]]-Pfad, rechts der [[archetype_node_id|openEHR-Pfad]]. Wähle einen aus, um ihn unten zu finden.',
   'rules.sets': 'schreibt',
   'inspector.openRule': 'Regel in {0} öffnen',
 
@@ -410,7 +466,7 @@ const DE: Dictionary = {
 
   'template.title': 'Template-Explorer',
   'template.lede':
-    'Das operationale Template ist das dritte, worauf die Mappings aufbauen — und das einzige, das die Anwendung nie zeigt. Gegen es validiert EHRbase eine Composition, an ihm löst openFHIR Pfade auf: das [[template_id|Template]] verengt die [[archetype_id|Archetypen]] auf einen konkreten Einsatz, und das hier ist das Ergebnis: jeder Knoten, den eine Composition haben darf, sein Typ, wie oft er vorkommen darf, und der Pfad, über den AQL ihn ansprechen würde.',
+    'Das operationale [[template_id|Template]]: wogegen EHRbase eine Composition prüft und worin openFHIR Pfade auflöst. Jeder Knoten, den eine Composition haben darf, sein Typ, wie oft er vorkommen darf, und der Pfad, den AQL nehmen würde.',
   'template.usedHeadline': 'Knoten des Templates werden benutzt',
   'template.usedNote':
     'Die anderen {0} sind erlaubt und bleiben leer. Diese Lücke ist normal — ein Template beschreibt, was aufgezeichnet werden darf, nicht was aufgezeichnet wird.',
@@ -423,11 +479,11 @@ const DE: Dictionary = {
   'template.expand': 'Aufklappen',
   'template.collapse': 'Zuklappen',
   'template.closing':
-    'Lohnt sich zu suchen: unter der Puls-Observation liegt ein zweiter Ereignis-Slot, ein INTERVAL_EVENT namens „Maximum" mit einer math_function. Das Modell hat Platz für Minimum, Maximum und Mittelwert eines Tages — das Mapping befüllt ihn nur nie, weil FHIR Connect in dieser Fassung keine math_function schreiben kann. Das Template sagt, was möglich ist; die Mappings entscheiden, was passiert.',
+    'Lohnt sich zu suchen: ein INTERVAL_EVENT namens „Maximum“ unter der Puls-Observation. Das Modell hat Platz dafür; das Mapping befüllt es nie.',
 
   'aql.title': 'AQL-Playground',
   'aql.lede':
-    'Führe eine Abfrage gegen die Akte aus und sieh, was openEHR antwortet. [[AQL]] selektiert über [[archetype_node_id|Archetyp-Pfade]] statt über Tabellenspalten. Eine gegen den Puls-Archetyp geschriebene Abfrage läuft deshalb auf jedem openEHR-System, das diesen Archetyp kennt. Sie liest nur: es gibt kein AQL-Statement, das etwas verändert.',
+    'Führe eine Abfrage gegen die Akte aus. [[AQL]] selektiert über [[archetype_node_id|Archetyp-Pfade]] statt über Tabellenspalten, und es liest nur: Kein AQL-Statement verändert etwas.',
   'aql.queryLabel': 'AQL-Abfrage',
   'aql.run': 'Ausführen',
   'aql.running': 'Läuft…',
@@ -441,7 +497,7 @@ const DE: Dictionary = {
 
   'tour.stores.title': 'Wo der Rest liegt',
   'tour.stores.body':
-    'Der letzte Schritt hat gezeigt, dass openEHR nur beh\u00e4lt, was sein Archetyp modelliert. Beim Patienten ist es dieselbe Geschichte: EHR_STATUS verankert einen Record an einer Kennung und hat weder f\u00fcr einen Namen noch f\u00fcr eine Adresse Platz. Also gibt es einen zweiten Speicher \u2014 einen gew\u00f6hnlichen FHIR-Server \u2014 und ein Patientenrecord wird aus beiden zusammengesetzt. Eine einzige Kennung verbindet sie, und f\u00e4llt einer aus, arbeitet der andere weiter. Das ist kein Notbehelf, sondern der Preis und der Gewinn zweier Modelle.',
+    'Beim Patienten ist es dieselbe Geschichte: EHR_STATUS hat Platz für eine Kennung, nicht für einen Namen. Namen liegen deshalb in einem zweiten Speicher, dem FHIR-Store, und eine Kennung verbindet die Hälften. Hier treffen sie sich in einem Bundle — und jeder Speicher kann ausfallen, ohne den anderen mitzunehmen.',
   'diagram.open.fhir': 'Pipeline-Inspector \u00f6ffnen, wo die FHIR-Observation zu sehen ist',
   'diagram.open.openfhir':
     'Mappings \u00f6ffnen \u2014 die FHIR-Connect-Regeln, die openFHIR ausf\u00fchrt',
@@ -450,32 +506,27 @@ const DE: Dictionary = {
   'inspector.travel': 'Richtung',
   'inspector.travel.in': 'Hinweg · POST',
   'inspector.travel.out': 'R\u00fcckweg · GET',
-  'tab.record': 'Zwei Speicher',
-  'record.title': 'Ein Record, zwei Speicher',
-  'record.lede':
-    'So sieht ein einzelner Patientenrecord aus, wenn die klinische H\u00e4lfte in openEHR liegt und die administrative nicht. Das Backend fragt beide und liefert ein einziges FHIR-Bundle zur\u00fcck; keiner der beiden Speicher h\u00e4lt den Teil des anderen, und im Bundle steht nirgends, was woher kam.',
   'record.fhirStore': 'FHIR-Store',
   'record.fhirStore.what':
-    'Name, Geschlecht, Geburtsdatum, Adresse. openEHRs EHR_STATUS verankert einen Record an einer Kennung und hat f\u00fcr nichts anderes Platz \u2014 genau daf\u00fcr gibt es diesen Server.',
+    'Name, Geschlecht, Geburtsdatum, Adresse — wofür EHR_STATUS in openEHR keinen Platz hat. Eine Tabelle in der eigenen Datenbank des Backends.',
   'record.openehr': 'openEHR, \u00fcber openFHIR',
   'record.openehr.what':
-    'Die Messwerte, als Compositions gespeichert und beim Herausgeben nach FHIR zur\u00fcckgemappt. Die Id jeder einzelnen ist das openEHR-Objekt-uid \u2014 deshalb braucht es keine \u00dcbersetzungstabelle.',
+    'Die Messwerte, als Compositions gespeichert und beim Herausgeben nach FHIR zurückgemappt. Jede Id ist die UID des openEHR-Objekts, deshalb übersetzt keine Tabelle.',
   'record.version': 'openEHRs Version dieser Composition, sichtbar gemacht als FHIR meta.versionId',
   'record.more': 'und {0} weitere',
   'record.note':
-    'Aus {0} Eintr\u00e4gen zusammengesetzt. Stoppt man den FHIR-Store, zeichnet das Chart weiter \u2014 nur die Namen fehlen, weil die beiden H\u00e4lften unabh\u00e4ngig ausfallen.',
-  'record.loading': 'Wird zusammengesetzt\u2026',
+    'Stoppt man die Datenbank des FHIR-Stores, zeichnet der Chart weiter: Die Patienten fallen auf die Konfiguration zurück, weil die beiden Hälften unabhängig ausfallen.',
   'lang.label': 'Sprache',
   'patient.label': 'Patient',
   'patient.ehr': 'Der openEHR-Record, in dem die Messwerte dieses Patienten liegen',
 
   'stale.title': 'Das Backend läuft mit einem älteren Stand als diese Seite.',
   'stale.body':
-    'Starte es mit `cd backend && ./gradlew bootRun` neu — es läuft auf dem Host, `docker compose` startet es also nicht mit. Bis dahin erscheinen Korrekturen nicht im Chart, und Pipeline-Inspector und Verkehrskonsole bleiben leer. Verloren geht dabei nichts: die Akte hat jede Messung, die du eingegeben hast.',
+    'Baue es neu: `docker compose up -d --build backend` für den Container, oder starte `cd backend && ./gradlew bootRun` neu, wenn es auf dem Host läuft — ein bloßes `docker compose up` behält das alte Image. Bis dahin zeigt der Pipeline-Inspector keine Stufen und seine Richtungs-Tabs bleiben ausgegraut, und Korrekturen tauchen womöglich nicht im Diagramm auf. Verloren geht derweil nichts; der Record hat jede Messung, die du eingegeben hast.',
 
   'start.title': 'Hier anfangen',
   'start.lede':
-    'Diese Anwendung speichert eine Zahl pro Tag — und dafür braucht es drei Standards. [[Observation|HL7 FHIR]] bringt die Messung herein und heraus, [[openFHIR]] übersetzt, und [[EHRbase|openEHR]] führt die Akte. Der Chart unten ist nur der Beleg, dass es funktioniert hat; in den beiden anderen Tabs kannst du zusehen.',
+    'Eine Zahl pro Tag, und dafür braucht es drei Standards: [[Observation|HL7 FHIR]] bringt sie herein und heraus, [[openFHIR]] übersetzt, [[EHRbase|openEHR]] führt die Akte. Der Chart ist nur der Beleg; die Tabs zeigen, wie.',
   'start.step1.body':
     'Sie kommen als FHIR-[[Bundle]] und werden als openEHR-Compositions gespeichert. Nichts nimmt eine Abkürzung in die Datenbank.',
   'start.step2.body':
@@ -488,21 +539,12 @@ const DE: Dictionary = {
   'start.step2.action': 'Pipeline-Inspector öffnen',
   'start.step3.title': 'Den Servern beim Reden zuhören',
   'start.step3.body':
-    'Jeder Aufruf an openFHIR und EHRbase, mit Anfrage und Antwort. Das ist die openEHR-REST-API, wie sie wirklich ist — nicht, wie eine Spezifikation sie beschreibt.',
+    'Jeder Aufruf an openFHIR und EHRbase, mit Anfrage und Antwort — auch wie das Backend openFHIR seine Mappings übergibt. Das ist die openEHR-REST-API, wie sie wirklich ist — nicht, wie eine Spezifikation sie beschreibt.',
   'start.step3.action': 'Standards-Verkehr öffnen',
   'start.hide': 'Ausblenden',
   'start.show': 'Einführung wieder einblenden',
   'start.showShort': 'Einführung',
   'start.hideLabel': 'Diese Einführung ausblenden',
-
-  'stat.resting': 'Ruhepuls',
-  'stat.average': 'Schnitt über {0} Tage',
-  'stat.coverage': 'Abdeckung',
-  'stat.noReadings': 'Noch keine Messungen',
-  'stat.needsTwo': 'Braucht zwei Tage mit Messungen',
-  'stat.days': '/ {0} Tage',
-  'stat.coverageNote': 'Tage mit aufgezeichnetem Ruhepuls',
-  'stat.delta': '{0} bpm gegenüber den Tagen davor',
 
   'chart.title': 'Ruhepuls, letzte {0} Tage',
   'chart.subtitle':
@@ -514,13 +556,12 @@ const DE: Dictionary = {
 
   'manual.title': 'Eine Messung erfassen',
   'manual.lede':
-    'Ein Ruhepuls für einen Tag. Ohne Abkürzung in die Datenbank: der Browser baut eine FHIR Observation und schickt sie an /fhir/Observation. Eine getippte Messung nimmt damit denselben Weg wie eine aus einem fremden System — durch die Mappings von openFHIR und hinein nach openEHR.',
+    'Ein Ruhepuls für einen Tag, ohne Abkürzung: Der Browser baut eine FHIR Observation und schickt sie an /fhir/Observation — derselbe Weg, den eine Messung aus einem fremden System nimmt.',
   'manual.date': 'Datum',
   'manual.rate': 'Ruhepuls',
   'manual.store': 'Speichern',
   'manual.correct': 'Korrigieren',
   'manual.storing': 'Wird gespeichert…',
-  'manual.trace': 'Stattdessen verfolgen',
   'manual.invalid': 'Ein Datum und ein Wert zwischen 20 und 250 bpm.',
   'manual.nothingYet': 'Für diesen Tag ist noch nichts aufgezeichnet.',
   'manual.existing':
@@ -531,13 +572,13 @@ const DE: Dictionary = {
   'manual.showResource': 'Die Ressource zeigen, die gesendet wird',
   'manual.hideResource': 'Die Ressource ausblenden',
   'manual.resourceNote':
-    'Vier dieser Felder sind keine Zierde. status, category und der LOINC-Code sind das, worauf pulse.model.yaml prüft, um überhaupt einen Ruhepuls zu erkennen, und die UCUM-Einheit ist das, was der Puls-Archetyp einschränkt. Ändere eines davon, und das Mapping erkennt die Ressource nicht mehr — das dritte Beispiel im Pipeline-Inspector macht genau das.',
+    'status, category und der LOINC-Code sind das, worauf das Mapping prüft; die UCUM-Einheit ist das, was der Archetyp einschränkt. Ändere eines davon, und das Mapping erkennt die Messung nicht mehr — das dritte Beispiel im Inspector macht genau das.',
   'manual.builtInBrowser': 'im Browser gebaut',
 
   'history.show': 'Zeigen, was dieser Tag früher sagte',
   'history.hide': 'Frühere Stände ausblenden',
   'history.lede':
-    'openEHR kennt kein Überschreiben. Eine Korrektur fügt derselben [[COMPOSITION]] eine Version hinzu und behält die davor. So kann die Akte weiterhin beantworten: „Was stand dort an dem Tag, an dem jemand danach gehandelt hat?" — und genau deshalb ist ein klinisches Repository keine gewöhnliche Datenbank.',
+    'openEHR kennt kein Überschreiben: Eine Korrektur fügt derselben [[COMPOSITION]] eine Version hinzu und behält die davor. So kann die Akte weiterhin beantworten: „Was stand dort an dem Tag, an dem jemand danach gehandelt hat?“',
   'history.none': 'Für diesen Tag ist nichts aufgezeichnet.',
   'history.inForce': 'aktuell',
   'history.corrections':
@@ -551,7 +592,7 @@ const DE: Dictionary = {
   'exchange.title': 'FHIR-Austausch',
   'exchange.lede.1': 'Beispieldaten laden',
   'exchange.lede.2':
-    'holt vom Backend einen Monat erfundener Messungen als FHIR Bundle und importiert ihn — bei jedem Aufruf für heute erzeugt, damit er nicht veralten kann wie eine eingecheckte Datei. Oder importiere ein eigenes Bundle. Der Export gibt dir alles Gespeicherte, wieder als Bundle: beide Richtungen laufen durch dieselben openFHIR-Mappings, was herauskommt, wird also von denselben Regeln erzeugt, die auch das Hereinkommende gelesen haben.',
+    'holt vom Backend einen Monat erfundener Messungen, für heute erzeugt, und importiert sie als FHIR Bundle. Der Export nimmt dieselben openFHIR-Mappings in die andere Richtung.',
   'exchange.loadSample': 'Beispieldaten laden',
   'exchange.importing': 'Wird importiert…',
   'exchange.import': 'Datei importieren',
@@ -567,20 +608,11 @@ const DE: Dictionary = {
 
   'inspector.title': 'Pipeline-Inspector',
   'inspector.lede':
-    'Der Import macht das jedes Mal und wirft alles weg. Hier wird nichts weggeworfen: w\u00e4hle eine Eingabe und gehe die Stufen durch. Es sind zwei Wege, nicht einer \u2014 ein POST bringt den Messwert hinein, ein GET bringt ihn zur\u00fcck, und erst auf dem R\u00fcckweg kommt die andere H\u00e4lfte des Records dazu. Geschrieben wird nichts, solange du nicht darum bittest.',
-  'inspector.dry.in':
-    'Das war ein Trockenlauf, deshalb endet der Hinweg bei dem Record, in den geschrieben worden w\u00e4re. Setze den Haken bei \u201eAuch in die Akte schreiben\u201c, um EHRbase validieren und speichern zu sehen.',
-  'inspector.dry.out':
-    'Es wurde nichts gespeichert, also gab es nichts zur\u00fcckzulesen: das ist dieselbe Composition in die andere Richtung gemappt, nicht eine, die aus EHRbase kam. Mit dem Haken bei \u201eAuch in die Akte schreiben\u201c beginnt der R\u00fcckweg mit der AQL, die sie holt.',
+    'Der Import macht das und wirft alles weg; hier bleibt jede Stufe erhalten. Zwei Wege: Ein POST trägt die Messung hinein und endet beim Schreibzugriff, den er machen würde, ein GET bringt zurück, was die Akte hält.',
+  'inspector.dry': 'Geschrieben wurde nichts \u2014 ein Trace liest nur.',
   'inspector.ownFile': 'Eigene Datei…',
-  'inspector.ownFileSummary': 'Ein beliebiges FHIR Bundle oder eine Observation.',
-  'inspector.store.title': 'Zusätzlich in der Akte speichern',
-  'inspector.store.why': 'Was ändert das?',
-  'inspector.store.body':
-    'Ein Trace ist standardmäßig ein Trockenlauf: er mappt die Messung durch openFHIR und zeigt dir das Ergebnis, schreibt aber nichts — du kannst also so oft hinsehen, wie du willst, ohne die Akte mit Beispielen zu füllen. Setz den Haken, und es wird wirklich gespeichert, was zwei weitere Stufen ergibt: das Schreiben nach EHRbase und das Zurücklesen mit AQL.',
   'inspector.running': 'Läuft…',
   'inspector.recognised': 'Erkannt als',
-  'inspector.wrote': 'Dieser Lauf hat in die Akte geschrieben.',
   'inspector.links.title': 'Was wurde wozu',
   'inspector.links.lede':
     'Wähle eines aus, um es auf beiden Seiten aufleuchten zu lassen und die FHIR-Connect-Regel zu sehen, die es dorthin gebracht hat.',
@@ -589,28 +621,28 @@ const DE: Dictionary = {
   'inspector.kind.generated': 'nicht aus FHIR',
   'inspector.diff.title': 'Was der Rückweg nicht zurückgebracht hat',
   'inspector.diff.lede':
-    'Jede Zeile hier ist ein Feld, das FHIR mitbrachte und für das das openEHR-Modell keinen Platz hat. Der Export liefert korrektes FHIR — nicht dasselbe FHIR.',
+    'Korrektes FHIR, nicht dasselbe FHIR. „lost“ markiert, was das Mapping absichtlich nicht zurückschreibt; „added“, was openEHR der Messung mitgegeben hat und FHIR nie geschickt hatte, etwa ihre Version.',
 
   'mapping.title': 'Die Regel, die das getan hat',
-  'mapping.lede':
-    'Deklaratives FHIR-Connect-YAML aus openfhir-bootstrap/ — ohne eine Zeile Java. Eine Bearbeitung hier schreibt die echte Datei und lässt openFHIR sie neu einlesen. Du kannst also ändern, wie die beiden Modelle einander entsprechen — oder es absichtlich kaputtmachen und genau zusehen, wo die Pipeline aufgibt. Alles ist ein Zurücksetzen vom Auslieferungsstand entfernt.',
   'mapping.edit': 'Dieses Mapping bearbeiten',
-  'mapping.save': 'Speichern und openFHIR neu laden',
+  'mapping.save': 'Speichern und an openFHIR übergeben',
   'mapping.saving': 'Wird gespeichert…',
   'mapping.cancel': 'Abbrechen',
   'mapping.reset': 'Auf den Auslieferungsstand zurücksetzen',
   'mapping.edited': 'Diese Datei wurde bearbeitet.',
   'mapping.savedOk':
-    'Gespeichert, und openFHIR hat seine Mappings neu geladen. Führe einen Trace aus, um zu sehen, was sich geändert hat.',
+    'Gespeichert, und openFHIR hat die neue Version übernommen. Führe einen Trace aus, um zu sehen, was sich geändert hat.',
   'mapping.savedBad':
-    'Gespeichert, aber openFHIR wollte es nicht laden: {0}. Es läuft weiterhin mit den Mappings, die es zuletzt gelesen hat.',
+    'Gespeichert, aber openFHIR hat es nicht übernommen: {0}. Es mappt weiterhin mit der Version, die es hatte.',
   'mapping.wasReset': 'Zurück auf den Stand, mit dem diese Anwendung ausgeliefert wurde.',
   'mapping.noDetail': 'keine nähere Angabe',
 
   'traffic.title': 'Standards-Verkehr',
   'traffic.lede':
-    'Jeder Aufruf, den dieser Dienst an die beiden Standards-Server gemacht hat, neueste zuerst. Das ist die openEHR-REST-API und die Mapping-API von [[openFHIR]], wie sie wirklich sind — eine [[COMPOSITION]], die per POST an /ehr/{id}/composition geht, eine beantwortete [[AQL]]-Abfrage, ein [[template_id|Template]]-Upload, der mit 409 antwortet, weil das Template schon da ist. Header werden nicht aufgezeichnet: [[EHRbase]] läuft mit Basic Auth, und diese Zugangsdaten haben in einem Browser-Panel nichts verloren.',
-  'traffic.both': 'Beide',
+    'Jeder Aufruf des Backends an openFHIR und [[EHRbase]], neueste zuerst — die openEHR-REST-API, wie sie wirklich ist, nicht wie eine Spezifikation sie beschreibt.',
+  'traffic.more':
+    'Ein [[template_id|Template]]-Upload, den EHRbase mit 409 beantwortet, heißt: Es hat das Template schon — und behält die alte Version. Bei jedem Start übergibt das Backend openFHIR Template und Mappings: ein GET, um zu sehen, was es hält, ein PUT, um es zu ersetzen. Die Patienten stehen nicht hier: Sie liegen in der eigenen Datenbank des Backends, und die zu lesen ist eine Abfrage, kein Aufruf. Header werden nicht aufgezeichnet — EHRbase läuft mit Basic Auth, und diese Zugangsdaten haben in einem Browser-Panel nichts verloren.',
+  'traffic.both': 'Alle',
   'traffic.live': 'Live mitlesen',
   'traffic.clear': 'Leeren',
   'traffic.empty':
@@ -622,8 +654,10 @@ const DE: Dictionary = {
   'traffic.failed': 'fehlgeschlagen',
 
   'explainer.stores':
-    'Drei Standards, aber zwei Speicher: die Messwerte sind openEHR-Compositions, und zu wem sie geh\u00f6ren, ist eine gew\u00f6hnliche FHIR-Ressource. Eine einzige Kennung verbindet beide \u2014 so kommen sie wieder zusammen.',
-  'explainer.stores.link': 'Zwei Speicher',
+    'Drei Standards, zwei Speicher: Die Messwerte sind openEHR-Compositions, der Patient eine gewöhnliche FHIR-Ressource, verbunden durch eine Kennung.',
+  'explainer.stores.link': 'Im Pipeline-Inspector ansehen',
+  'explainer.backend':
+    'Jeder Pfeil ist das Backend: Es gibt FHIR an openFHIR, schreibt das Ergebnis nach EHRbase und liest es per AQL zurück. Der Chart liest AQL direkt; gemappt wird nur FHIR, das hinein- oder hinausgeht.',
   'diagram.alt':
     'HL7 FHIR bringt die Messung herein, openFHIR mappt sie, openEHR speichert sie — und wieder hinaus.',
   'diagram.fhir.role': 'Austausch · um wen es geht',
@@ -631,7 +665,8 @@ const DE: Dictionary = {
   'diagram.openehr.role': 'Persistenz · EHRbase',
   'diagram.import': 'Import',
   'diagram.export': 'Export',
-  'diagram.store': 'speichern',
+  'diagram.write': 'Backend schreibt',
+  'diagram.read': 'Backend · AQL',
   'diagram.fhir.caption':
     'Sagt in Codes, was ein Wert|bedeutet. Speichert auch, zu|wem \u2014 openEHR kann das nicht.',
   'diagram.openfhir.caption':
@@ -643,6 +678,95 @@ const DE: Dictionary = {
   'panel.copy': 'Kopieren',
   'panel.copied': 'Kopiert',
   'panel.copyFailed': 'Kopieren fehlgeschlagen',
+  more: 'Mehr dazu',
+
+  'tab.build': 'Nachbauen',
+  'build.title': 'Selbst nachbauen',
+  'build.lede':
+    'Für dieselbe Struktur um einen eigenen Messwert herum: woraus sie besteht, in welcher Reihenfolge du was änderst und wo es schiefgeht. Jeder Schritt zeigt auf sein fertiges Beispiel hier.',
+  'build.pieces.title': 'Woraus es besteht',
+  'build.pieces.lede':
+    'Drei Teile sind die Struktur — behältst du ihre Rollen, hast du dieselbe Architektur. Das Backend ist der Teil, den du schreibst. Die Versionen sind exakt und gegen die Dateien geprüft, in denen sie festgelegt sind.',
+  'build.structure': 'Struktur',
+  'build.application': 'Anwendung',
+  'build.pinnedIn': 'Festgelegt in',
+  'build.docs': 'Dokumentation',
+  'build.piece.ehrbase.name': 'EHRbase',
+  'build.piece.ehrbase.role':
+    'Das openEHR-Repository für klinische Daten. Es prüft jede [[COMPOSITION]] gegen das Template, behält jede Version davon und beantwortet [[AQL]]. Die Messwerte liegen hier und sonst nirgends.',
+  'build.piece.openfhir.name': 'openFHIR',
+  'build.piece.openfhir.role':
+    'Übersetzt zwischen FHIR und openEHR nach den [[FHIR Connect]]-Mappings, die ihm das Backend per REST übergibt. Seine Version zählt am meisten: Ein Mapping kann nur ausdrücken, was sie umsetzt — 3.0.1 kann keine math_function schreiben.',
+  'build.piece.fhirStore.name': 'FHIR-Store',
+  'build.piece.fhirStore.role':
+    'Die administrative Hälfte: die Patienten, mit den Namen und Adressen, für die openEHR keinen Platz hat. Keine Messwerte. Eine Datenbank, kein Server — eine Tabelle in der eigenen Postgres des Backends.',
+  'build.piece.backend.name': 'Backend',
+  'build.piece.backend.role':
+    'Der eine Dienst in der Mitte: Er gibt FHIR an openFHIR, speichert das Ergebnis in EHRbase, liest es per AQL zurück und hält die Patienten. Alles, was weiß, dass es um Ruhepulse geht, steckt hier.',
+  'build.steps.title': 'Ein eigener Messwert, Schritt für Schritt',
+  'build.steps.lede':
+    'Sagen wir: Körpergewicht statt Ruhepuls. Die Reihenfolge zählt: Jeder Schritt baut auf dem vorigen auf, und zu jedem gibt es hier ein fertiges Beispiel, das du dir zuerst ansehen kannst.',
+  'build.files': 'Dateien, die dieser Schritt ändert',
+  'build.step.archetype.title': 'Den Archetyp finden',
+  'build.step.archetype.body':
+    'Schlag deinen Messwert zuerst im openEHR Clinical Knowledge Manager nach: Körpergewicht ist openEHR-EHR-OBSERVATION.body_weight.v2. Ein [[archetype_id|Archetyp]] ist etwas wert, weil andere denselben verwenden.',
+  'build.step.archetype.action': 'Der Puls-Archetyp im Template-Explorer',
+  'build.step.template.title': 'Ein Template bauen und exportieren',
+  'build.step.template.body':
+    'Setz den Archetyp im Archetype Designer in eine Composition, schränk ihn auf das ein, was du erfasst, und exportier ein Operational Template (ADL 1.4). Ersetz die eine .opt unten und ihre [[template_id]] in application.yml.',
+  'build.step.template.action': 'Was ein Template erlaubt und was genutzt wird',
+  'build.step.fhir.title': 'Festlegen, wie es in FHIR aussieht',
+  'build.step.fhir.body':
+    'Welche Ressource, welcher Code, welche Einheit. Das FHIR-Vital-Signs-Profil legt es fest: Körpergewicht ist eine [[Observation]] mit [[LOINC]] 29463-7 in kg. An diesen Codes erkennt das Mapping deinen Messwert.',
+  'build.step.fhir.action': 'Der Ruhepuls als Observation',
+  'build.step.mappings.title': 'Die Mappings schreiben',
+  'build.step.mappings.body':
+    'Kopier die drei Ruhepuls-Dateien und pass sie an: Der Kontext nennt das Template, das Composition-Mapping verteilt die Bundle-Einträge, das Modell ordnet FHIR-Pfade Archetyp-Pfaden zu und listet die Codes, an denen es die Ressource erkennt.',
+  'build.step.mappings.action': 'Die Mappings des Ruhepulses',
+  'build.step.backend.title': 'Dem Backend den neuen Messwert beibringen',
+  'build.step.backend.body':
+    'Das Backend ist das einzige Teil, das weiß, dass es um Ruhepulse geht. Alles in diesen Dateien, was pulse oder 40443-4 sagt, muss sich ändern.',
+  'build.step.load.title': 'Laden, und ausprobieren, bevor etwas gespeichert wird',
+  'build.step.load.body':
+    'Ein Start des Backends übergibt das Template an EHRbase und openFHIR und die Mappings an openFHIR. Der zweite Befehl zeigt, was openFHIR hält; der letzte schickt ihm direkt ein Bundle — eine leere Composition heißt: Eine Bedingung hat nicht gepasst.',
+  'build.step.load.action': 'Dieselben Aufrufe im Standards-Verkehr',
+  'build.step.query.title': 'Mit AQL abfragen',
+  'build.step.query.body':
+    'Ändere den Archetyp im CONTAINS und den Pfad im SELECT der Chart-Abfrage. Kopier den Pfad aus dem Template-Explorer — ein falscher Pfad ist in [[AQL]] kein Fehler, nur eine Spalte voller null.',
+  'build.step.query.action': 'Im AQL-Playground ausprobieren',
+  'build.pitfalls.title': 'Wo es schiefgeht',
+  'build.pitfalls.lede':
+    'Was sie gemeinsam haben: Das Symptom zeigt woanders hin als die Ursache. Rate die Ursache, bevor du einen aufklappst.',
+  'build.pitfall.template.symptom': 'Ein geändertes Template wirkt nicht',
+  'build.pitfall.template.cause':
+    'EHRbase behält das erste Template, das es unter einer ID bekommt, und beantwortet jeden späteren Upload mit 409 — was das Backend als „schon da“ versteht. openFHIR übernimmt die neue Version, EHRbase nicht. Gib einem geänderten Template eine neue [[template_id]], etwa heartrate_monitor.v2.',
+  'build.pitfall.stale.symptom': 'openFHIR mappt noch mit der alten Version',
+  'build.pitfall.stale.cause':
+    'openFHIR behält, was es bekommt, in MongoDB und schaut nie in die Dateien. Das Backend übergibt sie beim Start und wenn der Editor eine speichert — eine Datei, die du in einem eigenen Editor änderst, kommt erst beim nächsten Start des Backends bei openFHIR an.',
+  'build.pitfall.empty.symptom': 'openFHIR antwortet mit einer leeren Composition',
+  'build.pitfall.empty.cause':
+    'Keine Bedingung im Model-Mapping hat gepasst. Die Ressource ist gültiges FHIR, und openFHIR läuft; der Ressource fehlt bloß ein Code, den das Mapping verlangt. Vergleich die beiden Zeichen für Zeichen.',
+  'build.pitfall.interval.symptom': 'Minimum, Maximum oder Mittelwert lassen sich nicht mappen',
+  'build.pitfall.interval.cause':
+    'Ein [[INTERVAL_EVENT]] braucht eine math_function, und FHIR Connect, wie openFHIR 3.0.1 es umsetzt, kann keine schreiben. Prüf, was deine Version kann, bevor du ein Template darum herum entwirfst.',
+  'build.pitfall.nulls.symptom': 'Jeder AQL-Wert kommt als null zurück',
+  'build.pitfall.nulls.cause':
+    'Den Pfad gibt es nicht. [[AQL]] behandelt einen falschen Pfad nicht als Fehler: Die Abfrage findet die Observations und an diesem Pfad nichts.',
+  'build.pitfall.dates.symptom': 'Ein AQL-Datumsfilter findet nichts',
+  'build.pitfall.dates.cause':
+    'EHRbase vergleicht [[DV_DATE_TIME]]-Grenzen als Text. 2026-09-08T00:00Z ist gültiges ISO 8601 und findet trotzdem stillschweigend nichts; schreib die Sekunden aus, 2026-09-08T00:00:00Z.',
+  'build.pitfall.versions.symptom': 'Jede Version in einer Historie zeigt denselben Wert',
+  'build.pitfall.versions.cause':
+    'Die Version-UID gehört in den Pfad, …/version/{uid}. Als ?version_uid= wird sie angenommen, und EHRbase antwortet jedes Mal mit der neuesten Version.',
+  'build.pitfall.port.symptom': 'Änderungen am Backend kommen nicht an',
+  'build.pitfall.port.cause':
+    'Ein älteres Backend hält noch Port 18080. ./gradlew bootRun scheitert mit „Port 18080 was already in use“, die Meldung scrollt vorbei, und der alte Build antwortet weiter. Diese Seite merkt, wenn das Backend älter ist als sie selbst, und sagt es.',
+  'build.pitfall.linux.symptom': 'Unter Linux erreicht ein Container den Host nicht',
+  'build.pitfall.linux.cause':
+    'host.docker.internal löst sich nur in Docker Desktop von selbst auf. Unter Linux braucht der Service extra_hosts: host.docker.internal:host-gateway, wie ihn das Frontend in docker-compose.yml hat.',
+  'build.footer':
+    'Wie man es installiert, die Ports und was dein Rechner braucht, stehen in der README. Es steht unter der MIT-Lizenz: Nimm es auseinander und bau darauf auf.',
+  'build.footer.readme': 'README auf GitHub',
 };
 
 const DICTIONARIES: Record<Language, Dictionary> = { en: EN, de: DE };

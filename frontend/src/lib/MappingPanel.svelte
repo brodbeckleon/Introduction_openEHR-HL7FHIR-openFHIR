@@ -95,9 +95,6 @@
   <header>
     <div>
       <h3>{t('mapping.title')}</h3>
-      <p class="meta">
-        {t('mapping.lede')}
-      </p>
     </div>
   </header>
 

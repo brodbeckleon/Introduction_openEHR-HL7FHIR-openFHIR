@@ -4,6 +4,7 @@ import com.example.heartrate.aql.AqlResult;
 import com.example.heartrate.aql.AqlService;
 import com.example.heartrate.config.Messages;
 import com.example.heartrate.patient.PatientDirectory;
+import com.example.heartrate.service.HeartRateService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -58,6 +59,11 @@ public class AqlController {
             var id = object.path("id").asText();
             object.put("label", messages.get("aql." + id + ".label"));
             object.put("teaches", messages.get("aql." + id + ".teaches"));
+            // The chart's query is the real one, taken from where the chart takes it. A copy in
+            // the file would be the query the chart used to run.
+            if ("chart".equals(id)) {
+                object.put("query", HeartRateService.READINGS_AQL.strip());
+            }
         }
         return examples;
     }

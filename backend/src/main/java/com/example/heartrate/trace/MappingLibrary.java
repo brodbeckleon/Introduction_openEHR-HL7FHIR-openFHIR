@@ -16,11 +16,12 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
 /**
- * Serves the FHIR Connect mappings to the UI and finds the rule behind a given correspondence.
+ * The files in {@code openfhir-bootstrap/}: the FHIR Connect mappings and the operational template.
  *
- * <p>The files are read fresh on every request from {@code openfhir-bootstrap/} when that directory
- * is reachable, so an edit shows up in the browser as soon as openFHIR has been re-bootstrapped.
- * Falling back to the copy on the classpath keeps this working when the service runs from a jar.
+ * <p>This is their one copy. The same files are served to the UI, searched for the rule behind a
+ * correspondence, and handed to openFHIR and EHRbase — so what the mapping editor shows is what
+ * openFHIR was given. They are read fresh on every request when the directory is reachable;
+ * falling back to the copy on the classpath keeps this working when the service runs from a jar.
  */
 @Component
 public class MappingLibrary {
@@ -35,6 +36,9 @@ public class MappingLibrary {
         FILES.put("heartrate-encounter.model.yaml", "mapping.encounter");
         FILES.put("pulse.model.yaml", "mapping.pulse");
     }
+
+    /** The operational template, beside the mappings: the only copy of it there is. */
+    public static final String TEMPLATE_FILE = "heartrate_monitor.opt";
 
     private final Path directory;
     private final Messages messages;
@@ -92,6 +96,22 @@ public class MappingLibrary {
         }
     }
 
+    /** The mapping files by name, in the order they are worth reading. */
+    public List<String> files() {
+        return List.copyOf(FILES.keySet());
+    }
+
+    /** One mapping as it is now, or empty when there is no such file anywhere. */
+    public Optional<String> content(String file) {
+        return FILES.containsKey(file) ? read(file) : Optional.empty();
+    }
+
+    /** The operational template both servers are given, and the template explorer reads. */
+    public String operationalTemplate() {
+        return read(TEMPLATE_FILE).orElseThrow(() -> new IllegalStateException(
+                "The operational template is neither under " + directory + " nor on the classpath"));
+    }
+
     /** Every mapping file, in the order they are worth reading. */
     public List<MappingSource> sources() {
         return FILES.entrySet().stream()
@@ -132,9 +152,10 @@ public class MappingLibrary {
 
             String fhir = null;
             String openehr = null;
-            String constantPath = null;
-            String value = null;
             boolean withBlock = false;
+            // A manual entry may write several paths — a code and its system, say — and each is a
+            // rule of its own: one constant per path, listed under the entry's name.
+            var constants = new java.util.ArrayList<String[]>();
 
             for (int j = i + 1; j <= end; j++) {
                 var line = lines[j];
@@ -148,19 +169,24 @@ public class MappingLibrary {
                     fhir = valueOf(trimmed);
                 } else if (withBlock && trimmed.startsWith("openehr:") && openehr == null) {
                     openehr = valueOf(trimmed);
-                } else if (trimmed.startsWith("- path:") && constantPath == null) {
-                    constantPath = valueOf(trimmed.substring(2));
-                } else if (trimmed.startsWith("value:") && value == null) {
-                    value = valueOf(trimmed);
+                } else if (trimmed.startsWith("- path:")) {
+                    constants.add(new String[] {valueOf(trimmed.substring(2)), null});
+                } else if (trimmed.startsWith("value:") && !constants.isEmpty()
+                        && constants.get(constants.size() - 1)[1] == null) {
+                    constants.get(constants.size() - 1)[1] = valueOf(trimmed);
                 }
             }
 
             if (fhir != null && openehr != null) {
                 rules.add(new MappingRule(file, start.group(2), "correspondence", indent / 2,
                         fhir, openehr, null, i + 1, end + 1));
-            } else if (constantPath != null) {
-                rules.add(new MappingRule(file, start.group(2), "constant", indent / 2,
-                        constantPath, null, value, i + 1, end + 1));
+            } else {
+                for (var constant : constants) {
+                    if (constant[0] != null) {
+                        rules.add(new MappingRule(file, start.group(2), "constant", indent / 2,
+                                constant[0], null, constant[1], i + 1, end + 1));
+                    }
+                }
             }
         }
         return rules;

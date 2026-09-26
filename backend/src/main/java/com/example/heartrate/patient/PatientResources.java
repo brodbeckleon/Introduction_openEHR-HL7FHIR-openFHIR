@@ -9,16 +9,15 @@ import org.hl7.fhir.r4.model.Patient;
 import org.springframework.stereotype.Component;
 
 /**
- * Projects a configured patient into a FHIR Patient resource.
+ * Turns a configured patient into a FHIR Patient resource, and keeps the link to its record intact.
  *
- * <p>Nothing is stored: the resource is built on every read from the directory entry and the EHR id
- * openEHR answers with. That is the point of this step — {@code Observation.subject} used to point
- * at a Patient that existed nowhere, and now it resolves.
+ * <p>The projection is what the FHIR store is seeded with, and what the directory falls back to
+ * when that store cannot be reached. Either way {@code Observation.subject} resolves to a Patient
+ * that exists.
  *
  * <p>The EHR id travels as a secondary identifier. A FHIR client that has the Patient can therefore
- * find its openEHR record without this service explaining the correspondence, which is the same
- * bridge the vaccination reference server builds — there between two stores, here between a
- * projection and one store.
+ * find its openEHR record without this service explaining the correspondence — the same bridge the
+ * vaccination reference server builds between its two stores.
  */
 @Component
 public class PatientResources {
@@ -29,10 +28,7 @@ public class PatientResources {
     public Patient toFhir(HeartrateProperties.Patient patient, String ehrId) {
         var resource = new Patient();
         resource.setId(patient.id());
-        resource.addIdentifier()
-                .setSystem(EHR_ID_SYSTEM)
-                .setValue("urn:uuid:" + ehrId)
-                .setUse(Identifier.IdentifierUse.SECONDARY);
+        withEhrIdentifier(resource, ehrId);
         if (patient.name() != null) {
             resource.addName().setText(patient.name());
         }
@@ -51,5 +47,22 @@ public class PatientResources {
                     .setCountry(address.country());
         }
         return resource;
+    }
+
+    /**
+     * Makes sure the Patient names its openEHR record, and names the right one.
+     *
+     * <p>A FHIR update replaces the whole resource, so a client editing an address can drop the
+     * identifier without meaning to — and with it the only way from this Patient to its readings.
+     * The link is this service's to keep, not the client's: whatever the client sent for it is
+     * replaced by the EHR id openEHR actually holds, and every other identifier is left alone.
+     */
+    public static Patient withEhrIdentifier(Patient patient, String ehrId) {
+        patient.getIdentifier().removeIf(identifier -> EHR_ID_SYSTEM.equals(identifier.getSystem()));
+        patient.addIdentifier()
+                .setSystem(EHR_ID_SYSTEM)
+                .setValue("urn:uuid:" + ehrId)
+                .setUse(Identifier.IdentifierUse.SECONDARY);
+        return patient;
     }
 }

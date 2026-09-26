@@ -48,20 +48,6 @@ public class AppConfig {
                 .build();
     }
 
-    /**
-     * The traffic interceptor is deliberately attached here too: the console then shows all three
-     * systems this app talks to, and the FHIR store's calls sit beside EHRbase's, which is the
-     * clearest way to see which half of a record came from where.
-     */
-    @Bean
-    RestClient fhirStoreRestClient(
-            RestClient.Builder builder, HeartrateProperties properties, TrafficRecorder recorder) {
-        return builder.clone()
-                .baseUrl(properties.fhirStore().baseUrl())
-                .requestInterceptor(new TrafficInterceptor(recorder, "FHIR store"))
-                .build();
-    }
-
     @Bean
     RestClient openFhirRestClient(
             RestClient.Builder builder, HeartrateProperties properties, TrafficRecorder recorder) {

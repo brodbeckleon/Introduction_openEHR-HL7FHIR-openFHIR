@@ -1,5 +1,6 @@
 package com.example.heartrate.web;
 
+import com.example.heartrate.fhir.HeartRateExtractor;
 import com.example.heartrate.fhir.PulseObservations;
 import com.example.heartrate.fhir.SampleReadings;
 import com.example.heartrate.patient.PatientDirectory;
@@ -30,28 +31,50 @@ public class FhirController {
 
     private final HeartRateService service;
     private final PulseObservations pulseObservations;
+    private final HeartRateExtractor extractor;
     private final SampleReadings sampleReadings;
     private final PatientDirectory patients;
 
     public FhirController(
             HeartRateService service,
             PulseObservations pulseObservations,
+            HeartRateExtractor extractor,
             SampleReadings sampleReadings,
             PatientDirectory patients) {
         this.service = service;
         this.pulseObservations = pulseObservations;
+        this.extractor = extractor;
         this.sampleReadings = sampleReadings;
         this.patients = patients;
     }
 
-    /** Ingests a vital-signs heart rate Observation from an external system. */
+    /**
+     * Ingests a vital-signs heart rate Observation from an external system.
+     *
+     * <p>The same road a Bundle entry takes: the Observation is recognised and rebuilt in canonical
+     * form before it reaches the mappings, so {@code bpm} and SNOMED are as welcome here as they are
+     * in an import, and one that is not a resting heart rate is refused with a reason rather than
+     * handed to openFHIR to fail on.
+     */
     @PostMapping(value = "/Observation", consumes = {FHIR_JSON, MediaType.APPLICATION_JSON_VALUE},
             produces = FHIR_JSON)
     public ResponseEntity<String> create(
             @RequestBody String observationJson,
             @RequestParam(required = false) String patient) {
-        var stored = service.record(
-                pulseObservations.parseObservation(observationJson), patients.resolve(patient));
+        var patientId = patients.resolve(patient);
+        var arrived = pulseObservations.parseObservation(observationJson);
+        var reading = extractor.reading(arrived);
+        if (reading.isEmpty()) {
+            var outcome = new OperationOutcome();
+            outcome.addIssue()
+                    .setSeverity(OperationOutcome.IssueSeverity.ERROR)
+                    .setCode(OperationOutcome.IssueType.NOTSUPPORTED)
+                    .setDiagnostics("Not a usable resting heart rate: " + extractor.rejectionReason(arrived));
+            return ResponseEntity.unprocessableEntity()
+                    .contentType(MediaType.valueOf(FHIR_JSON))
+                    .body(pulseObservations.encode(outcome));
+        }
+        var stored = service.record(pulseObservations.observation(reading.get(), patientId), patientId);
         return ResponseEntity.created(java.net.URI.create("Observation/" + stored.getIdElement().getIdPart()))
                 .contentType(MediaType.valueOf(FHIR_JSON))
                 .body(pulseObservations.encode(stored));

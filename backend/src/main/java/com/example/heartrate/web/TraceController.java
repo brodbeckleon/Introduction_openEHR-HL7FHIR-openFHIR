@@ -47,15 +47,13 @@ public class TraceController {
     /**
      * Runs one reading through the pipeline.
      *
-     * @param store when true the composition is really written to EHRbase and read back with AQL;
-     *     by default the trace is a dry run and the record is left alone
+     * <p>Read-only, always: the trace maps the reading and reads what the two stores hold, and
+     * writes to neither. There is no flag for the other thing, because the other thing is what
+     * {@code POST /fhir/Bundle} is for.
      */
     @PostMapping(consumes = {MediaType.APPLICATION_JSON_VALUE, "application/fhir+json"})
-    public Trace trace(
-            @RequestBody String json,
-            @RequestParam(defaultValue = "false") boolean store,
-            @RequestParam(required = false) String patient) {
-        return service.trace(json, store, patients.resolve(patient));
+    public Trace trace(@RequestBody String json, @RequestParam(required = false) String patient) {
+        return service.trace(json, patients.resolve(patient));
     }
 
     /**

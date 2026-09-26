@@ -6,14 +6,15 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
  * Everything that points this service at the two standards servers it talks to.
+ *
+ * <p>The third store, the patients' own database, is configured as an ordinary Spring datasource
+ * rather than here: it is not a server this service talks to but its own.
  */
 @ConfigurationProperties(prefix = "heartrate")
 public record HeartrateProperties(
         Ehrbase ehrbase,
         OpenFhir openfhir,
-        /** The FHIR server holding the administrative half of the record. */
-        FhirStore fhirStore,
-        /** Template the compositions are built against; must match the .opt shipped to both servers. */
+        /** Template the compositions are built against; must match the .opt given to both servers. */
         String templateId,
         /** The patient a request is about when it names none. */
         String defaultPatient,
@@ -25,17 +26,16 @@ public record HeartrateProperties(
         String composerName,
         String territory,
         /**
-         * Where the FHIR Connect mappings live, so the pipeline inspector can show the rule behind a
-         * mapping. Read live when the directory is reachable; the copy on the classpath is the
-         * fallback for running from a jar.
+         * Where the FHIR Connect mappings and the operational template live. This service is their
+         * only reader: it hands them to openFHIR and the template to EHRbase, and the pipeline
+         * inspector shows the rule behind a mapping from the same files. Read live when the
+         * directory is reachable; the copy on the classpath is the fallback for running from a jar.
          */
         String mappingsDir) {
 
     public record Ehrbase(String baseUrl, String username, String password) {}
 
     public record OpenFhir(String baseUrl) {}
-
-    public record FhirStore(String baseUrl) {}
 
     /**
      * A demo patient, as this instance seeds it into the FHIR store on first start.

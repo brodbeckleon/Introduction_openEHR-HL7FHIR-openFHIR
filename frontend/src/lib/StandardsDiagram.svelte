@@ -4,9 +4,9 @@
   /**
    * The three standards, what each is for, and which way the data moves.
    *
-   * The README says this in ASCII; a reading is faster than a paragraph, and in the pipeline
-   * inspector the box belonging to whoever is acting right now lights up, which turns the same
-   * picture into a position indicator.
+   * The README says this in ASCII; a reading is faster than a paragraph. The backend has no box —
+   * it is not a standard — but it is every arrow, and the two on the right say so, because
+   * "store" on an arrow out of openFHIR read as openFHIR storing, which it never does.
    */
 
   type System = 'fhir' | 'openfhir' | 'openehr';
@@ -88,7 +88,7 @@
       onkeydown={(event) => activate('fhir', event)}
     >
       {#if onselect}<title>{t('diagram.open.fhir')}</title>{/if}
-      <rect x="8" y="44" width="236" height="96" rx="10" />
+      <rect x="8" y="44" width="220" height="96" rx="10" />
       <text class="name" x="28" y="76">HL7 FHIR</text>
       <text class="role" x="28" y="98">{t('diagram.fhir.role')}</text>
       <text class="artefact" x="28" y="122">Observation · LOINC 40443-4</text>
@@ -109,10 +109,10 @@
       onkeydown={(event) => activate('openfhir', event)}
     >
       {#if onselect}<title>{t('diagram.open.openfhir')}</title>{/if}
-      <rect x="332" y="44" width="236" height="96" rx="10" />
-      <text class="name" x="352" y="76">openFHIR</text>
-      <text class="role" x="352" y="98">{t('diagram.openfhir.role')}</text>
-      <text class="artefact" x="352" y="122">FHIR Connect mappings</text>
+      <rect x="340" y="44" width="220" height="96" rx="10" />
+      <text class="name" x="360" y="76">openFHIR</text>
+      <text class="role" x="360" y="98">{t('diagram.openfhir.role')}</text>
+      <text class="artefact" x="360" y="122">FHIR Connect mappings</text>
     </g>
 
     <!-- Persistence -->
@@ -130,48 +130,49 @@
       onkeydown={(event) => activate('openehr', event)}
     >
       {#if onselect}<title>{t('diagram.open.openehr')}</title>{/if}
-      <rect x="656" y="44" width="236" height="96" rx="10" />
-      <text class="name" x="676" y="76">openEHR</text>
-      <text class="role" x="676" y="98">{t('diagram.openehr.role')}</text>
-      <text class="artefact" x="676" y="122">COMPOSITION · pulse.v2</text>
+      <rect x="672" y="44" width="220" height="96" rx="10" />
+      <text class="name" x="692" y="76">openEHR</text>
+      <text class="role" x="692" y="98">{t('diagram.openehr.role')}</text>
+      <text class="artefact" x="692" y="122">COMPOSITION · pulse.v2</text>
     </g>
 
     <!-- Left gap: FHIR travels in and out -->
-    <line class="flow fhir-flow" x1="248" y1="74" x2="324" y2="74" marker-end="url(#arrow-fhir)" />
+    <line class="flow fhir-flow" x1="232" y1="74" x2="332" y2="74" marker-end="url(#arrow-fhir)" />
     <line
       class="flow fhir-flow"
-      x1="324"
+      x1="332"
       y1="112"
-      x2="248"
+      x2="232"
       y2="112"
       marker-end="url(#arrow-fhir)"
     />
-    <text class="edge" x="286" y="64" text-anchor="middle">{t('diagram.import')}</text>
-    <text class="edge" x="286" y="132" text-anchor="middle">{t('diagram.export')}</text>
+    <text class="edge" x="284" y="64" text-anchor="middle">{t('diagram.import')}</text>
+    <text class="edge" x="284" y="132" text-anchor="middle">{t('diagram.export')}</text>
 
-    <!-- Right gap: openEHR goes to the record and comes back -->
+    <!-- Right gap: the backend writes the composition to the record and reads it back with AQL.
+         openFHIR is on neither arrow — it translates, it never stores and never queries. -->
     <line
       class="flow openehr-flow"
-      x1="572"
+      x1="564"
       y1="74"
-      x2="648"
+      x2="664"
       y2="74"
       marker-end="url(#arrow-openehr)"
     />
     <line
       class="flow openehr-flow"
-      x1="648"
+      x1="664"
       y1="112"
-      x2="572"
+      x2="564"
       y2="112"
       marker-end="url(#arrow-openehr)"
     />
-    <text class="edge" x="610" y="64" text-anchor="middle">{t('diagram.store')}</text>
-    <text class="edge" x="610" y="132" text-anchor="middle">AQL</text>
+    <text class="edge" x="614" y="64" text-anchor="middle">{t('diagram.write')}</text>
+    <text class="edge" x="614" y="132" text-anchor="middle">{t('diagram.read')}</text>
 
     {#if !compact}
       <!-- What each one is actually good at. This is the part people come away with. -->
-      {#each [['diagram.fhir.caption', 8], ['diagram.openfhir.caption', 332], ['diagram.openehr.caption', 656]] as [key, x] (key)}
+      {#each [['diagram.fhir.caption', 8], ['diagram.openfhir.caption', 340], ['diagram.openehr.caption', 672]] as [key, x] (key)}
         {#each caption(key as string) as line, row (row)}
           <text class="caption" {x} y={176 + row * 20}>{line}</text>
         {/each}
@@ -183,12 +184,21 @@
 <style>
   .diagram {
     margin: 0;
+    /* A phone gets a diagram it can scroll rather than one it cannot read: scaled to 360px the
+       captions are five pixels tall. */
+    overflow-x: auto;
   }
 
   svg {
     display: block;
     width: 100%;
     height: auto;
+  }
+
+  @media (max-width: 700px) {
+    svg {
+      min-width: 640px;
+    }
   }
 
   .node rect {

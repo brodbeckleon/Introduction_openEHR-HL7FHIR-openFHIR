@@ -79,7 +79,9 @@ export async function backendIsCurrent(): Promise<boolean> {
     const response = await fetch('/api/about', { cache: 'no-store', headers: headers() });
     if (!response.ok) return false;
     const about = (await response.json()) as { capabilities?: string[] };
-    return (about.capabilities ?? []).includes('composition-versioning');
+    // The newest capability the page relies on: an older backend answers traces without
+    // directions, and the inspector then draws nothing.
+    return (about.capabilities ?? []).includes('trace-journeys');
   } catch {
     // Unreachable is a different problem, with its own message on the chart.
     return true;
@@ -126,11 +128,11 @@ export async function exportBundle(days = 30): Promise<string> {
 }
 
 /**
- * Runs one reading through the whole pipeline and keeps every intermediate form. A dry run
- * unless `store` is set, in which case the composition really is written to EHRbase.
+ * Runs one reading through the whole pipeline and keeps every intermediate form. Read-only: it maps
+ * the reading and reads what the two stores hold, and writes to neither.
  */
-export async function runTrace(json: string, store = false): Promise<Trace> {
-  const response = await fetch(withPatient(`/api/trace?store=${store}`), {
+export async function runTrace(json: string): Promise<Trace> {
+  const response = await fetch(withPatient('/api/trace'), {
     method: 'POST',
     headers: headers({ 'Content-Type': 'application/json' }),
     body: json,
@@ -190,7 +192,7 @@ export async function fetchDayHistory(date: string): Promise<DayHistory> {
 }
 
 /**
- * Writes one FHIR Connect mapping and asks openFHIR to re-read its bootstrap directory.
+ * Writes one FHIR Connect mapping, which the backend then hands openFHIR as the new version.
  *
  * A mapping openFHIR rejects is still written — the answer says what went wrong, and seeing that
  * is the reason the editor exists.
@@ -285,26 +287,16 @@ export async function fetchPatients(): Promise<PatientSummary[]> {
 }
 
 /**
- * Everything known about the current patient, as the backend assembles it from both stores.
+ * A Bundle assembled from both stores, taken apart again by where each entry lives.
  *
  * The Bundle itself says nothing about where each entry came from — deliberately, because a FHIR
  * client should not have to care. The rule is applied here instead: a Patient can only have come
  * from the FHIR store, an Observation only from openEHR by way of openFHIR.
  */
-export async function fetchAssembledRecord(days = 30): Promise<AssembledRecord> {
-  const id = patient();
-  if (!id) throw new Error('No patient selected yet.');
-  const response = await fetch(`/fhir/Patient/${encodeURIComponent(id)}/$everything?days=${days}`, {
-    cache: 'no-store',
-    headers: headers(),
-  });
-  if (!response.ok) throw failure(response, 'Loading the assembled record');
-  const bundle = (await response.json()) as {
-    total?: number;
-    entry?: { resource?: Record<string, unknown> }[];
-  };
-
-  const entries: RecordEntry[] = (bundle.entry ?? []).flatMap((entry) => {
+export function recordOf(bundle: unknown): AssembledRecord {
+  const entries: RecordEntry[] = (
+    (bundle as { entry?: { resource?: Record<string, unknown> }[] })?.entry ?? []
+  ).flatMap((entry) => {
     const r = entry.resource;
     if (!r || typeof r.resourceType !== 'string') return [];
     const meta = r.meta as { versionId?: string } | undefined;
@@ -318,7 +310,7 @@ export async function fetchAssembledRecord(days = 30): Promise<AssembledRecord> 
       },
     ];
   });
-  return { total: bundle.total ?? entries.length, entries };
+  return { total: entries.length, entries };
 }
 
 function summarise(resource: Record<string, unknown>): string {

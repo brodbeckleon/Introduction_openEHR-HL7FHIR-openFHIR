@@ -1,5 +1,9 @@
 server:
   port: 18080
+  tomcat:
+    # FHIR writes a token search as system|value, and so does every example of one. Tomcat rejects
+    # an unencoded | in a query string unless told otherwise.
+    relaxed-query-chars: "|"
 
 spring:
   application:
@@ -11,6 +15,17 @@ spring:
     fallback-to-system-locale: false
   jackson:
     default-property-inclusion: non_null
+  # The FHIR store: this service's own Postgres, holding the patients. Only ever reached on demand —
+  # the pool does not insist on a connection at startup and gives up on one quickly, so with the
+  # database down the service still starts, the chart still draws, and the patients fall back to
+  # the roster below.
+  datasource:
+    url: jdbc:postgresql://localhost:18084/fhirstore
+    username: fhirstore
+    password: fhirstore
+    hikari:
+      initialization-fail-timeout: -1
+      connection-timeout: 2000
 
 heartrate:
   template-id: heartrate_monitor.v1
@@ -49,8 +64,6 @@ heartrate:
     password: SuperSecretPassword
   openfhir:
     base-url: http://localhost:18082
-  fhir-store:
-    base-url: http://localhost:18083
 
 logging:
   level:
