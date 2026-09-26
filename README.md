@@ -657,6 +657,8 @@ cd frontend && npm run format     # prettier --write
 
 MIT — see [`LICENSE`](LICENSE). Take it apart, build on it, hand it on.
 
-That covers what is in this repository. The archetypes the operational template is built from come
-from the openEHR Clinical Knowledge Manager, and the images `docker-compose.yml` pulls come from
-their own projects; each of those carries a licence of its own.
+That covers the code and text in this repository. The archetypes the operational template is built
+from come from the openEHR Clinical Knowledge Manager, and the images `docker-compose.yml` pulls come
+from their own projects; each of those carries a licence of its own. The favicon,
+`frontend/public/favicon.svg`, is the ZHAW logo mark — a trademark of the Zurich University of
+Applied Sciences, not covered by the MIT licence.
