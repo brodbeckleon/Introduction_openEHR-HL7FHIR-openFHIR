@@ -141,22 +141,22 @@ steps, using the tabs as its stage:
 
 Each step switches to the tab it belongs on, selects the right pipeline stage where that matters, and
 rings the thing it is talking about — so "notice the LOINC code is gone" arrives with the JSON on
-screen rather than as a claim. It can be stopped at any point, and the compass button beside the title
+screen rather than as a claim. It can be stopped at any point, and **Take the tour** in the header
 starts it again from any tab.
 
-The **Start here** panel can be hidden once it has served its purpose; a link in its place brings it
-back, and the tour is reachable from the header regardless.
+The **Start here** panel can be hidden once it has served its purpose; the **Introduction** button in
+the header brings it back, and the tour is reachable from the header regardless.
 
 ## Finding your way in
 
 The overview opens with a **Start here** panel: three steps in the order that makes sense — get a
 month of readings in, watch one of them cross into openEHR, watch the servers talk. It notices when
-step one is already done, and it can be dismissed for good.
+step one is already done, and **Hide** puts it away until it is asked for again.
 
 Every term the app puts on screen explains itself where it appears. `at0004`, `DV_QUANTITY`,
 `archetype_node_id`, `PARTY_SELF`, `AQL`, LOINC `40443-4` — anything underlined is hoverable,
 **including inside the JSON panels**, which is where the vocabulary is at its most opaque and where
-a glossary page would be least use. Around thirty terms are covered; each says what the thing is and
+a glossary page would be least use. About forty terms are covered; each says what the thing is and
 what it is not to be mistaken for, which is usually the part that matters:
 
 > **POINT_EVENT** — A value measured at one moment. The alternative is an INTERVAL_EVENT, which
@@ -365,9 +365,10 @@ from the code the chart calls rather than copied, a whole composition, which arc
 SELECT o/data[at0002]/events[at0003]/data[at0001]/items[at9999]/value/magnitude AS bpm
 FROM EHR e[ehr_id/value=$ehrId]
   CONTAINS OBSERVATION o[openEHR-EHR-OBSERVATION.pulse.v2]
+LIMIT 10
 ```
 
-`at9999` is not in the pulse archetype. It does not fail — ten rows come back, one per observation,
+`at9999` is not in the pulse archetype. It does not fail — the rows come back, one per observation,
 every value null. **A wrong path is not an error in AQL**, it simply matches nothing, and that is the
 failure mode worth meeting deliberately rather than in production.
 
@@ -612,13 +613,13 @@ curl -u ehrbase-user:SuperSecretPassword \
 | `POST` | `/api/aql` | Run one AQL query, read-only; body is the query as text |
 | `GET` | `/api/aql/examples` | The ready-made queries the playground offers |
 | `GET` | `/api/template` | The operational template as a tree, marked with what the data uses |
-| `POST` | `/api/traffic/clear` | Empties that buffer |
 | `GET` | `/api/traffic?since=0` | Calls made to openFHIR and EHRbase, for the traffic console |
+| `POST` | `/api/traffic/clear` | Empties that buffer |
 | `GET` | `/api/about` | What this build can do; a 404 tells the page the backend is older than it is |
 | `GET` | `/fhir/Patient` | The patients this instance knows, from the FHIR store; `?identifier=system\|value` finds the one carrying an EHR id |
 | `GET` | `/fhir/Patient/{id}` | One of them; this is what `Observation.subject` resolves to |
 | `PUT` | `/fhir/Patient/{id}` | Replace one patient's details in the FHIR store; the link to their openEHR record is kept whatever the body says |
-| `GET` | `/fhir/Patient/{id}/$everything` | The whole record as one Bundle — the patient from the FHIR store, the readings from openEHR |
+| `GET` | `/fhir/Patient/{id}/$everything?days=30` | The whole record as one Bundle — the patient from the FHIR store, the readings from openEHR |
 | `GET` | `/fhir/Observation/{id}` | One reading, addressed by the openEHR composition uid that is its FHIR id |
 
 ## Notes
