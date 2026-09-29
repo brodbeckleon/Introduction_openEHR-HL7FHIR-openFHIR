@@ -3,6 +3,7 @@
   import JsonPanel from './JsonPanel.svelte';
   import VersionHistory from './VersionHistory.svelte';
   import { t } from './i18n.svelte';
+  import { patient } from './patient.svelte';
   import type { DailyRestingHeartRate } from './types';
 
   interface Props {
@@ -10,11 +11,9 @@
     days: DailyRestingHeartRate[];
     /** Called after a reading was stored, so the chart can reload. */
     onstored: () => Promise<void> | void;
-    /** Hands the built Observation to the pipeline inspector instead of storing it. */
-    ontrace?: (observation: unknown) => void;
   }
 
-  const { days, onstored, ontrace }: Props = $props();
+  const { days, onstored }: Props = $props();
 
   const LOINC = 'http://loinc.org';
   const UCUM = 'http://unitsofmeasure.org';
@@ -62,7 +61,10 @@
     code: {
       coding: [{ system: LOINC, code: '40443-4', display: 'Heart rate --resting' }],
     },
-    subject: { reference: 'Patient/demo-patient' },
+    // Whoever the page is showing. The backend scopes the write by the ?patient= parameter, so a
+    // fixed id here would not send the reading to the wrong record — it would do something worse
+    // and label it with the wrong subject.
+    subject: { reference: `Patient/${patient() ?? ''}` },
     // Midnight UTC: a resting heart rate is a whole-day value, not a moment.
     effectiveDateTime: `${date}T00:00:00Z`,
     valueQuantity: { value: bpm, unit: '/min', system: UCUM, code: '/min' },
@@ -111,16 +113,6 @@
     <button type="button" class="primary" disabled={!valid || saving} onclick={save}>
       {saving ? t('manual.storing') : existing ? t('manual.correct') : t('manual.store')}
     </button>
-    {#if ontrace}
-      <button
-        type="button"
-        class="secondary"
-        disabled={!valid}
-        onclick={() => ontrace(observation)}
-      >
-        {t('manual.trace')}
-      </button>
-    {/if}
   </div>
 
   {#if !valid}
@@ -235,12 +227,6 @@
     background: var(--series-resting);
     color: #fff;
     border: none;
-  }
-
-  .secondary {
-    background: transparent;
-    color: var(--series-resting);
-    border: 1px solid var(--border);
   }
 
   button:disabled {

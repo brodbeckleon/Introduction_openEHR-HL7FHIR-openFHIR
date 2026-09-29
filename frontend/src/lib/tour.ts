@@ -24,21 +24,22 @@ export interface TourStep {
 }
 
 export const TOUR: TourStep[] = [
-  { tab: 'overview', key: 'tour.what', focus: '.chart' },
-  // The manual entry form, not the statistics card: the form defaults to 58, so the number the
-  // step names is literally on screen. The card shows whatever happens to be stored.
-  { tab: 'overview', key: 'tour.number', focus: '.manual' },
+  // The manual entry form: it defaults to 58, so the number the step names is literally on screen.
+  { tab: 'overview', key: 'tour.what', focus: '.manual' },
   { tab: 'overview', key: 'tour.column', focus: '.explainer' },
   { tab: 'pipeline', key: 'tour.fhir', stage: 'observation', focus: '.panels' },
   { tab: 'pipeline', key: 'tour.openehr', stage: 'composition', focus: '.panels' },
-  { tab: 'pipeline', key: 'tour.lost', stage: 'roundtrip', focus: '.differences' },
+  { tab: 'pipeline', key: 'tour.lost', stage: 'export', focus: '.differences' },
+  // Straight after 'lost': that step has just shown openEHR dropping what its archetype does not
+  // model. This is the other half of the same observation — some of what it drops has to live
+  // somewhere, and that somewhere is a second store, met again at the stage that assembles both.
+  { tab: 'pipeline', key: 'tour.stores', stage: 'assembled', focus: '.columns' },
   { tab: 'mappings', key: 'tour.translate', focus: '.mapping' },
   // After the mappings, never before: the point of the template is the contrast with them, and
   // that only lands once the reader knows what a mapping is.
   { tab: 'template', key: 'tour.template', focus: '.summary' },
-  { tab: 'overview', key: 'tour.versions', focus: '.manual' },
-  // Straight after versioning: this is where the PUT that step just described is visible.
-  { tab: 'traffic', key: 'tour.traffic', focus: '.calls' },
+  // Told where it can be seen rather than where it is done: the correction is a PUT in the list.
+  { tab: 'traffic', key: 'tour.versions', focus: '.calls' },
   { tab: 'aql', key: 'tour.query', focus: '.examples' },
   { tab: 'overview', key: 'tour.done' },
 ];

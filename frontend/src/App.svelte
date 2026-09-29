@@ -1,12 +1,14 @@
 <script lang="ts">
   import Icon from './lib/Icon.svelte';
   import AqlPlayground from './lib/AqlPlayground.svelte';
+  import BuildYourOwn from './lib/BuildYourOwn.svelte';
   import GettingStarted from './lib/GettingStarted.svelte';
   import HeartRateChart from './lib/HeartRateChart.svelte';
   import ManualEntry from './lib/ManualEntry.svelte';
   import MappingsTab from './lib/MappingsTab.svelte';
   import PipelineInspector from './lib/PipelineInspector.svelte';
   import LanguageSwitch from './lib/LanguageSwitch.svelte';
+  import PatientSwitch from './lib/PatientSwitch.svelte';
   import StandardsDiagram from './lib/StandardsDiagram.svelte';
   import TemplateExplorer from './lib/TemplateExplorer.svelte';
   import Tour from './lib/Tour.svelte';
@@ -15,10 +17,12 @@
   import {
     backendIsCurrent,
     exportBundle,
+    fetchPatients,
     fetchSampleBundle,
     fetchSeries,
     importFile,
   } from './lib/api';
+  import { patient, rememberPatients } from './lib/patient.svelte';
   import { locale, t } from './lib/i18n.svelte';
   import type {
     DailyRestingHeartRate,
@@ -36,6 +40,7 @@
     { id: 'aql', key: 'tab.aql' },
     { id: 'mappings', key: 'tab.mappings' },
     { id: 'template', key: 'tab.template' },
+    { id: 'build', key: 'tab.build' },
   ] as const;
 
   type Tab = (typeof TABS)[number]['id'];
@@ -50,22 +55,23 @@
   /** In the hash so a view can be linked to — "look at the inspector" is a thing people say. */
   let tab = $state<Tab>(tabFromHash());
 
-  /** An Observation handed from the manual form to the inspector, traced instead of stored. */
-  let handoff = $state<unknown | null>(null);
-
   function show(next: Tab): void {
     tab = next;
+    // Consumed once: coming back to the inspector later must not jump to it again.
+    if (next !== 'pipeline') wantedStage = null;
     history.replaceState(null, '', next === 'overview' ? location.pathname : `#${next}`);
   }
 
-  function traceIt(observation: unknown): void {
-    handoff = observation;
+  /** A pipeline stage that the tour, or a link, wants on screen when the inspector opens. */
+  let wantedStage = $state<string | null>(null);
+
+  function showStage(stage: string): void {
+    wantedStage = stage;
     show('pipeline');
   }
 
   /** The tour runs over the whole app, switching tabs as it goes. */
   let touring = $state(false);
-  let tourStage = $state<string | null>(null);
   let tourDone = $state(tourSeen());
 
   // The introduction can be hidden, but never lost: hiding it leaves a link to bring it back, and
@@ -82,7 +88,7 @@
   }
 
   function startTour(): void {
-    tourStage = null;
+    wantedStage = null;
     touring = true;
   }
 
@@ -106,9 +112,24 @@
   let staleBackend = $state(false);
 
   $effect(() => {
+    // Read the patient here rather than leaving it to the fetch: that makes the dependency explicit,
+    // so switching records reloads the chart instead of relying on where the read happens to land.
+    patient();
     void load();
     void (async () => {
       staleBackend = !(await backendIsCurrent());
+    })();
+  });
+
+  // The directory is loaded once. A backend that predates it answers 404, and the switch simply
+  // stays hidden — every request then omits the parameter and gets the configured default.
+  $effect(() => {
+    void (async () => {
+      try {
+        rememberPatients(await fetchPatients());
+      } catch {
+        // Nothing to switch between; the default patient still works.
+      }
     })();
   });
 
@@ -172,24 +193,6 @@
 
   const restingDays = $derived<DailyRestingHeartRate[]>(series ? series.days : []);
 
-  const latestResting = $derived<DailyRestingHeartRate | null>(
-    restingDays.length ? (restingDays[restingDays.length - 1] ?? null) : null,
-  );
-
-  const averageResting = $derived<number | null>(
-    restingDays.length
-      ? Math.round(restingDays.reduce((sum, day) => sum + day.resting, 0) / restingDays.length)
-      : null,
-  );
-
-  /** Latest day against the average of the days before it — the number people actually look for. */
-  const delta = $derived.by<number | null>(() => {
-    if (!latestResting || restingDays.length < 2) return null;
-    const earlier = restingDays.slice(0, -1);
-    const baseline = earlier.reduce((sum, day) => sum + day.resting, 0) / earlier.length;
-    return Math.round((latestResting.resting - baseline) * 10) / 10;
-  });
-
   function shortDate(date: string): string {
     return new Date(date).toLocaleDateString(locale(), { month: 'short', day: 'numeric' });
   }
@@ -205,8 +208,13 @@
     return () => window.removeEventListener('hashchange', follow);
   });
 
-  /** The backend text was fetched in the old language, so the whole view is rebuilt. */
-  function relabel(): void {
+  /**
+   * Rebuilds every view that holds fetched data.
+   *
+   * <p>Both switches need this for the same reason: the backend text was fetched in the old
+   * language, or the data belongs to the record that is no longer being shown.
+   */
+  function reloadAll(): void {
     void load();
     reloadKey += 1;
   }
@@ -217,23 +225,25 @@
     <div class="title-row">
       <h1>{t('app.title')}</h1>
       <div class="header-actions">
-        <!-- Only while it is hidden: when the panel is on screen it carries its own Hide button. -->
-        {#if introHidden}
-          <button
-            type="button"
-            class="header-button"
-            onclick={() => setIntroHidden(false)}
-            title={t('start.show')}
-          >
-            <Icon name="info" />
-            <span>{t('start.showShort')}</span>
-          </button>
-        {/if}
+        <!-- Only usable while the panel is hidden: on screen, it carries its own Hide button. It
+             keeps its place while invisible, so the row stays the same width either way; taking
+             it out decided whether the row wrapped, and the whole header jumped with it. -->
+        <button
+          type="button"
+          class="header-button"
+          class:reserved={!introHidden}
+          onclick={() => setIntroHidden(false)}
+          title={t('start.show')}
+        >
+          <Icon name="info" />
+          <span>{t('start.showShort')}</span>
+        </button>
         <button type="button" class="header-button" onclick={startTour} title={t('tour.start')}>
           <Icon name="compass" />
           <span>{tourDone ? t('tour.restart') : t('tour.start')}</span>
         </button>
-        <LanguageSwitch onchange={relabel} />
+        <PatientSwitch onchange={reloadAll} />
+        <LanguageSwitch onchange={reloadAll} />
       </div>
     </div>
     <p>{t('app.lede')}</p>
@@ -256,7 +266,7 @@
 
   {#if tab === 'pipeline'}
     {#key reloadKey}
-      <PipelineInspector {handoff} onshowRule={showRule} wantedStage={tourStage} />
+      <PipelineInspector onshowRule={showRule} {wantedStage} />
     {/key}
   {:else if tab === 'traffic'}
     {#key reloadKey}<TrafficConsole />{/key}
@@ -266,6 +276,8 @@
     {#key reloadKey}<MappingsTab focus={mappingFocus} />{/key}
   {:else if tab === 'template'}
     {#key reloadKey}<TemplateExplorer />{/key}
+  {:else if tab === 'build'}
+    <BuildYourOwn onShow={show} />
   {:else}
     {#if !introHidden}
       <GettingStarted
@@ -280,43 +292,22 @@
     {/if}
 
     <section class="explainer" aria-label="How the three standards fit together">
-      <StandardsDiagram />
-    </section>
-
-    <section class="stats" aria-label="Summary">
-      <article>
-        <h3>{t('stat.resting')}</h3>
-        {#if latestResting}
-          <p class="figure">{latestResting.resting}<span class="unit">bpm</span></p>
-          <p class="meta">{shortDate(latestResting.date)}</p>
-        {:else}
-          <p class="figure muted">–</p>
-          <p class="meta">{t('stat.noReadings')}</p>
-        {/if}
-      </article>
-
-      <article>
-        <h3>{t('stat.average', DAYS)}</h3>
-        <p class="figure">
-          {averageResting ?? '–'}{#if averageResting}<span class="unit">bpm</span>{/if}
-        </p>
-        {#if delta !== null}
-          <p class="meta delta" class:down={delta < 0} class:up={delta > 0}>
-            {delta > 0 ? '↑' : delta < 0 ? '↓' : '→'}
-            {t('stat.delta', Math.abs(delta))}
-          </p>
-        {:else}
-          <p class="meta">{t('stat.needsTwo')}</p>
-        {/if}
-      </article>
-
-      <article>
-        <h3>{t('stat.coverage')}</h3>
-        <p class="figure">
-          {restingDays.length}<span class="unit">{t('stat.days', DAYS)}</span>
-        </p>
-        <p class="meta">{t('stat.coverageNote')}</p>
-      </article>
+      <!-- Each box opens the tab where that standard's own artefact can be read. -->
+      <StandardsDiagram
+        onselect={(system) =>
+          show(system === 'fhir' ? 'pipeline' : system === 'openfhir' ? 'mappings' : 'template')}
+      />
+      <!-- The diagram draws the translation axis. This is the other one, which it cannot show
+           without becoming two diagrams at once. -->
+      <!-- The backend is not a standard and gets no box, but every arrow is it: naming that
+           once keeps the picture from reading as openFHIR storing or openEHR querying. -->
+      <p class="stores-note">{t('explainer.backend')}</p>
+      <p class="stores-note">
+        {t('explainer.stores')}
+        <button type="button" class="link" onclick={() => showStage('assembled')}>
+          {t('explainer.stores.link')} →
+        </button>
+      </p>
     </section>
 
     {#if loadError}
@@ -332,7 +323,7 @@
         <HeartRateChart {series} />
       {/if}
 
-      <ManualEntry days={restingDays} onstored={load} ontrace={traceIt} />
+      <ManualEntry days={restingDays} onstored={load} />
 
       <section class="exchange">
         <h2>{t('exchange.title')}</h2>
@@ -414,10 +405,10 @@
 {#if touring}
   <Tour
     onshow={(next) => show(next)}
-    onstage={(stage) => (tourStage = stage)}
+    onstage={(stage) => (wantedStage = stage)}
     onclose={() => {
       touring = false;
-      tourStage = null;
+      wantedStage = null;
       tourDone = true;
     }}
   />
@@ -425,7 +416,7 @@
 
 <style>
   main {
-    max-width: 900px;
+    max-width: 1000px;
     margin: 0 auto;
     padding: 40px 20px 64px;
     display: flex;
@@ -437,10 +428,14 @@
     font-size: 1.6rem;
   }
 
+  /* Pushed right even once it wraps under the title, so the language switch stays at the edge. */
   .header-actions {
     display: flex;
     align-items: center;
-    gap: 12px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    margin-left: auto;
   }
 
   .header-button {
@@ -459,6 +454,11 @@
   .header-button:hover {
     color: var(--text-primary);
     border-color: var(--text-muted);
+  }
+
+  /* Holds the space without being seen, clicked, focused or read out. */
+  .header-button.reserved {
+    visibility: hidden;
   }
 
   /* On a narrow header the compass alone carries it; the title attribute keeps the name. */
@@ -482,9 +482,12 @@
     max-width: 60ch;
   }
 
+  /* Wraps rather than overflows: seven tabs do not fit a phone in one row, and a tab that is
+     off the edge of the screen is a tab nobody finds. */
   nav {
     display: flex;
-    gap: 4px;
+    flex-wrap: wrap;
+    gap: 0 18px;
     border-bottom: 1px solid var(--border);
     margin-bottom: -10px;
   }
@@ -494,21 +497,15 @@
     border: none;
     border-bottom: 2px solid transparent;
     padding: 7px 2px;
-    margin-right: 18px;
     font-size: 0.88rem;
     color: var(--text-secondary);
     cursor: pointer;
+    white-space: nowrap;
   }
 
   nav button.active {
     color: var(--text-primary);
     border-bottom-color: var(--series-resting);
-  }
-
-  .stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 16px;
   }
 
   .stale {
@@ -526,6 +523,25 @@
     color: var(--critical);
   }
 
+  .stores-note {
+    margin: 10px 0 0;
+    max-width: 68ch;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    line-height: 1.55;
+  }
+
+  .stores-note .link {
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    color: var(--series-resting);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
   .explainer {
     padding: 18px 20px 12px;
     background: var(--surface-1);
@@ -533,7 +549,6 @@
     border-radius: var(--radius);
   }
 
-  .stats article,
   .exchange,
   .table-section {
     background: var(--surface-1);
@@ -541,39 +556,9 @@
     border-radius: var(--radius);
   }
 
-  .stats article {
-    padding: 16px 18px;
-  }
-
   .exchange,
   .table-section {
     padding: 20px;
-  }
-
-  .stats h3 {
-    font-size: 0.78rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-muted);
-    font-weight: 600;
-  }
-
-  .figure {
-    margin: 8px 0 0;
-    font-size: 2.4rem;
-    line-height: 1;
-    font-weight: 600;
-  }
-
-  .figure.muted {
-    color: var(--text-muted);
-  }
-
-  .unit {
-    font-size: 0.95rem;
-    font-weight: 400;
-    color: var(--text-secondary);
-    margin-left: 6px;
   }
 
   .meta {
@@ -581,14 +566,6 @@
     font-size: 0.82rem;
     color: var(--text-secondary);
     max-width: 70ch;
-  }
-
-  .delta.down {
-    color: var(--success);
-  }
-
-  .delta.up {
-    color: var(--critical);
   }
 
   .exchange h2 {

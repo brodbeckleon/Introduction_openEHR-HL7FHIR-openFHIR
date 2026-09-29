@@ -41,7 +41,7 @@ class JsonPointersTest {
     void reportsWhatTheRoundTripDropped() throws Exception {
         var before = mapper.readTree("""
                 {"code":{"coding":[{"system":"http://loinc.org","code":"40443-4"}]},
-                 "subject":{"reference":"Patient/demo-patient"},
+                 "subject":{"reference":"Patient/max-mustermann"},
                  "valueQuantity":{"value":58}}
                 """);
         var after = mapper.readTree("""

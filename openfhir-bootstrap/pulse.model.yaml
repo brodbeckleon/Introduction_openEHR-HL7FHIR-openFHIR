@@ -43,12 +43,18 @@ mappings:
     with:
       fhir: "$resource"
       openehr: "$archetype"
+    # What openEHR never stored and outgoing FHIR still has to carry. The archetype is the
+    # meaning, so the code goes back as a constant — and so does its system, because a Coding
+    # without one is not a LOINC code, just a string that looks like one. The display names are
+    # left out on purpose: they are the one loss the round trip is allowed to show.
     manual:
       - name: "code"
         fhir:
           # LOINC 40443-4 "Heart rate --resting" — the standard code for this value.
           - path: "code.coding.code"
             value: "40443-4"
+          - path: "code.coding.system"
+            value: "http://loinc.org"
       - name: "status"
         fhir:
           - path: "status"
@@ -57,3 +63,5 @@ mappings:
         fhir:
           - path: "category.coding.code"
             value: "vital-signs"
+          - path: "category.coding.system"
+            value: "http://terminology.hl7.org/CodeSystem/observation-category"

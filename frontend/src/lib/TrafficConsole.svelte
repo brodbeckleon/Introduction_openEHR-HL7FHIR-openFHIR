@@ -1,4 +1,5 @@
 <script lang="ts">
+  import More from './More.svelte';
   import RichText from './RichText.svelte';
   import { clearTraffic, fetchTraffic } from './api';
   import JsonPanel from './JsonPanel.svelte';
@@ -74,6 +75,7 @@
     <p class="meta">
       <RichText text={t('traffic.lede')} />
     </p>
+    <More><p><RichText text={t('traffic.more')} /></p></More>
   </header>
 
   <div class="controls">
@@ -157,7 +159,9 @@
                     <figcaption>{t('traffic.response')}</figcaption>
                     <pre>{entry.responseBody}</pre>
                   </figure>
-                {:else}
+                {:else if !entry.error}
+                  <!-- A failed call has no body because it never got an answer; the 204 note
+                       would explain something that did not happen. -->
                   <p class="meta no-body">
                     {t('traffic.noBody')}
                   </p>

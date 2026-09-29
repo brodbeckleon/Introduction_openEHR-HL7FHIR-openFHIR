@@ -1,7 +1,7 @@
 [
   {
     "id": "chart",
-    "query": "SELECT\n  o/data[at0002]/events[at0003]/time/value AS measured_at,\n  o/data[at0002]/events[at0003]/data[at0001]/items[at0004]/value/magnitude AS bpm\nFROM EHR e[ehr_id/value=$ehrId]\n  CONTAINS COMPOSITION c[openEHR-EHR-COMPOSITION.encounter.v1]\n    CONTAINS OBSERVATION o[openEHR-EHR-OBSERVATION.pulse.v2]\nORDER BY o/data[at0002]/events[at0003]/time/value DESC\nLIMIT 10"
+    "query": "(filled in from HeartRateService.READINGS_AQL — the query the chart runs)"
   },
   {
     "id": "whole",

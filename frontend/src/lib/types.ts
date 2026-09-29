@@ -46,13 +46,27 @@ export interface TraceStep {
   /** The HTTP call that produced it, when a server was involved. */
   call?: string;
   explanation: string;
+  /** The explanation in a sentence or two, shown first; only where the full text is long. */
+  summary?: string | null;
   note?: string;
   status: 'ok' | 'error';
   json?: unknown;
-  durationMs?: number;
+  durationMs?: number | null;
   differences?: RoundTripDifference[];
   /** The AQL, kept beside the JSON so it can be shown as a query rather than an escaped string. */
   query?: string;
+  /**
+   * `in` for the way a reading travels into the record, `out` for the way it comes back. The
+   * inspector shows one at a time: they are two operations, a POST and a GET, and drawing them as
+   * one line made a lookup look like a link in a chain.
+   */
+  direction: 'in' | 'out';
+  /**
+   * Whether this stage hangs off the line rather than lying on it. The FHIR store is the only thing
+   * that does: the reading never passes through it, so a Patient drawn in the chain would claim a
+   * descent that does not exist. A branch hangs off the stage before it.
+   */
+  branch: boolean;
 }
 
 /**
@@ -91,7 +105,6 @@ export interface SaveResult {
 export interface Trace {
   inputKind: 'bundle' | 'observation' | 'unknown';
   inputLabel: string;
-  stored: boolean;
   steps: TraceStep[];
   links: MappingLink[];
   mappings: MappingSource[];
@@ -225,4 +238,32 @@ export interface MappingRule {
   value?: string;
   fromLine: number;
   toLine: number;
+}
+
+/**
+ * One patient the backend knows, flattened out of the FHIR Patient it projects.
+ *
+ * `ehrId` is the identifier that ties the resource to its openEHR record — the whole point of the
+ * projection, and worth showing rather than hiding.
+ */
+export interface PatientSummary {
+  id: string;
+  name: string;
+  ehrId: string | null;
+}
+
+/** One entry of the assembled record, with the store it came out of. */
+export interface RecordEntry {
+  resourceType: string;
+  id: string;
+  /** Which store answered for this entry. Derived from the resource type, not sent by the server. */
+  origin: 'fhir-store' | 'openehr';
+  summary: string;
+  /** openEHR's version, surfaced as FHIR meta.versionId. Absent on administrative resources. */
+  version?: string;
+}
+
+export interface AssembledRecord {
+  total: number;
+  entries: RecordEntry[];
 }

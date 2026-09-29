@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 class TemplateParserTest {
 
     private TemplateNode parse() throws Exception {
-        try (var opt = Files.newInputStream(Path.of("src/main/resources/heartrate_monitor.opt"))) {
+        try (var opt = Files.newInputStream(Path.of("../openfhir-bootstrap/heartrate_monitor.opt"))) {
             return TemplateParser.parse(opt);
         }
     }

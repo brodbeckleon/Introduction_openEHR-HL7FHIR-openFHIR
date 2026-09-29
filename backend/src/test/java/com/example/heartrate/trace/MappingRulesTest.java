@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
 import com.example.heartrate.config.HeartrateProperties;
+import java.util.List;
 import com.example.heartrate.config.TestMessages;
 import org.junit.jupiter.api.Test;
 
@@ -13,7 +14,7 @@ class MappingRulesTest {
             new HeartrateProperties(
                     new HeartrateProperties.Ehrbase("http://localhost", "u", "p"),
                     new HeartrateProperties.OpenFhir("http://localhost"),
-                    "heartrate_monitor.v1", "ehr-id", "demo-patient", "composer", "CH",
+                    "heartrate_monitor.v1", "max-mustermann", List.of(), "composer", "CH",
                     "../openfhir-bootstrap"),
             TestMessages.create());
 
@@ -45,8 +46,11 @@ class MappingRulesTest {
                 .extracting(MappingRule::name, MappingRule::fhir, MappingRule::value)
                 .contains(
                         tuple("code", "code.coding.code", "40443-4"),
+                        tuple("code", "code.coding.system", "http://loinc.org"),
                         tuple("status", "status", "final"),
-                        tuple("category", "category.coding.code", "vital-signs"));
+                        tuple("category", "category.coding.code", "vital-signs"),
+                        tuple("category", "category.coding.system",
+                                "http://terminology.hl7.org/CodeSystem/observation-category"));
     }
 
     /** Nesting is meaningful: a nested rule only applies inside its parent. */

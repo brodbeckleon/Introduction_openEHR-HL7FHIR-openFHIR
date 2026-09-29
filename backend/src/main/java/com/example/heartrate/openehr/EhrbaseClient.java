@@ -4,6 +4,7 @@ import com.example.heartrate.config.HeartrateProperties;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -21,6 +22,13 @@ public class EhrbaseClient {
 
     private static final Logger log = LoggerFactory.getLogger(EhrbaseClient.class);
     private static final String API = "/rest/openehr/v1";
+
+    /** Which EHR belongs to a patient. The answer lives in openEHR itself, not in this service. */
+    public static final String EHR_BY_SUBJECT_AQL = """
+            SELECT e/ehr_id/value AS ehr_id
+            FROM EHR e
+            WHERE e/ehr_status/subject/external_ref/id/value = $patientId
+            """;
 
     private final RestClient client;
     private final HeartrateProperties properties;
@@ -52,8 +60,28 @@ public class EhrbaseClient {
         }
     }
 
-    /** Creates the demo EHR under a fixed id so the record survives restarts. */
-    public void ensureEhr(String ehrId) {
+    /**
+     * The EHR belonging to a patient, if openEHR already holds one.
+     *
+     * <p>This is the whole bridge between the two worlds, and it is openEHR's own: an EHR carries an
+     * {@code EHR_STATUS} whose {@code subject} names who the record is about. Nothing outside EHRbase
+     * has to remember which EHR belongs to whom — the question is answerable in AQL.
+     */
+    public Optional<String> findEhrByPatient(String patientId) {
+        var rows = query(EHR_BY_SUBJECT_AQL, Map.of("patientId", patientId));
+        return rows.stream()
+                .filter(row -> !row.isEmpty() && !row.get(0).isNull())
+                .map(row -> row.get(0).asText())
+                .findFirst();
+    }
+
+    /**
+     * Creates an EHR for a patient and answers with its id.
+     *
+     * <p>The patient id goes into {@code EHR_STATUS.subject} rather than into this service's own
+     * configuration, which is what makes {@link #findEhrByPatient} possible at all.
+     */
+    public String createEhr(String ehrId, String patientId) {
         var ehrStatus = """
                 {
                   "_type": "EHR_STATUS",
@@ -71,7 +99,7 @@ public class EhrbaseClient {
                   "is_queryable": true,
                   "is_modifiable": true
                 }
-                """.formatted(properties.patientId());
+                """.formatted(patientId);
         try {
             client.put()
                     .uri(API + "/ehr/{ehrId}", ehrId)
@@ -80,7 +108,7 @@ public class EhrbaseClient {
                     .body(ehrStatus)
                     .retrieve()
                     .toBodilessEntity();
-            log.info("Created EHR {}", ehrId);
+            log.info("Created EHR {} for patient {}", ehrId, patientId);
         } catch (HttpClientErrorException e) {
             if (e.getStatusCode() == HttpStatus.CONFLICT) {
                 log.info("EHR {} already exists", ehrId);
@@ -88,6 +116,7 @@ public class EhrbaseClient {
                 throw e;
             }
         }
+        return ehrId;
     }
 
     /** Stores a canonical COMPOSITION and returns the version uid EHRbase assigned. */

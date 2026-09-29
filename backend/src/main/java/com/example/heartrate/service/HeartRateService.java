@@ -8,6 +8,8 @@ import com.example.heartrate.model.HeartRateSeries;
 import com.example.heartrate.model.Reading;
 import com.example.heartrate.openehr.EhrbaseClient;
 import com.example.heartrate.openfhir.OpenFhirClient;
+import com.example.heartrate.patient.EhrResolver;
+import com.example.heartrate.patient.PatientDirectory;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
@@ -45,8 +47,11 @@ public class HeartRateService {
      * or a record imported twice before updates existed — and the chart has to show the one that was
      * written last rather than whichever the store happens to return first. EHRbase will not ORDER BY
      * a VERSION path, so the ordering by commit time happens in {@link #series}.
+     *
+     * <p>Public because the AQL playground offers it as "the query the chart runs", and a copy
+     * there would be the query the chart used to run.
      */
-    private static final String READINGS_AQL = """
+    public static final String READINGS_AQL = """
             SELECT %s/time/value AS measured_at, %s/magnitude AS bpm,
                    v/commit_audit/time_committed/value AS committed
             FROM EHR e[ehr_id/value=$ehrId]
@@ -57,8 +62,12 @@ public class HeartRateService {
             ORDER BY %s/time/value ASC
             """.formatted(PULSE_EVENT, PULSE_RATE, PULSE_EVENT, PULSE_EVENT);
 
-    /** The compositions already recorded for one day, so a new reading corrects rather than piles up. */
-    private static final String SAME_DAY_AQL = """
+    /**
+     * The compositions already recorded for one day, so a new reading corrects rather than piles up.
+     *
+     * <p>Public because the pipeline inspector shows it: the query it displays is the one that runs.
+     */
+    public static final String SAME_DAY_AQL = """
             SELECT c/uid/value AS version_uid, v/commit_audit/time_committed/value AS committed
             FROM EHR e[ehr_id/value=$ehrId]
               CONTAINS VERSION v
@@ -67,8 +76,13 @@ public class HeartRateService {
             WHERE %s/time/value >= $from AND %s/time/value < $to
             """.formatted(PULSE_EVENT, PULSE_EVENT);
 
-    // EHRbase requires every ORDER BY path to appear in the SELECT, hence the second column.
-    private static final String COMPOSITIONS_AQL = """
+    /**
+     * What the FHIR export starts with: the compositions themselves, oldest first.
+     *
+     * <p>EHRbase requires every ORDER BY path to appear in the SELECT, hence the second column.
+     * Public because the pipeline inspector shows it as the query the way back begins with.
+     */
+    public static final String COMPOSITIONS_AQL = """
             SELECT c AS composition, %s/time/value AS measured_at
             FROM EHR e[ehr_id/value=$ehrId]
               CONTAINS COMPOSITION c[openEHR-EHR-COMPOSITION.encounter.v1]
@@ -82,6 +96,8 @@ public class HeartRateService {
     private final PulseObservations pulseObservations;
     private final HeartRateExtractor extractor;
     private final HeartrateProperties properties;
+    private final EhrResolver ehrResolver;
+    private final PatientDirectory directory;
     private final ObjectMapper objectMapper;
 
     public HeartRateService(
@@ -90,17 +106,22 @@ public class HeartRateService {
             PulseObservations pulseObservations,
             HeartRateExtractor extractor,
             HeartrateProperties properties,
+            EhrResolver ehrResolver,
+            PatientDirectory directory,
             ObjectMapper objectMapper) {
         this.ehrbase = ehrbase;
         this.openFhir = openFhir;
         this.pulseObservations = pulseObservations;
         this.extractor = extractor;
         this.properties = properties;
+        this.ehrResolver = ehrResolver;
+        this.directory = directory;
         this.objectMapper = objectMapper;
     }
 
     /** Stores an Observation, which is how everything gets into the CDR. */
-    public Observation record(Observation observation) {
+    public Observation record(Observation observation, String patientId) {
+        var ehrId = ehrResolver.ehrIdFor(patientId);
         // A client is entitled to post an Observation without an id and let the server assign one.
         // Without this the Bundle's fullUrl and the 201's Location header both read "urn:uuid:null".
         if (!observation.hasIdElement() || observation.getIdElement().getIdPart() == null) {
@@ -115,23 +136,75 @@ public class HeartRateService {
         // A second reading for a day that already has one is a correction, not a second fact. openEHR
         // expresses that by versioning the composition rather than adding another one — and the old
         // version stays in the record, which is the whole point of a clinical data repository.
-        var existing = measuredAt(observation).flatMap(this::latestVersionOn);
+        var existing = measuredAt(observation).flatMap(at -> latestVersionOn(at, ehrId));
         String uid;
         if (existing.isPresent()) {
             var precedingVersion = existing.get();
             uid = ehrbase.updateComposition(
-                    properties.ehrId(), versionedObjectUid(precedingVersion), precedingVersion, composition);
+                    ehrId, versionedObjectUid(precedingVersion), precedingVersion, composition);
             log.debug("Corrected resting heart rate to {}: {} is now {}",
                     observation.getValueQuantity().getValue(), precedingVersion, uid);
         } else {
-            uid = ehrbase.createComposition(properties.ehrId(), composition);
+            uid = ehrbase.createComposition(ehrId, composition);
             log.debug("Stored resting heart rate {} as composition {}",
                     observation.getValueQuantity().getValue(), uid);
+        }
+        // The server assigns the id, as a FHIR server may, and the id it assigns is the openEHR
+        // composition's own. Whatever id the client proposed is dropped here — keeping it would mean
+        // holding a table that translates between the two, and there is nothing that table would
+        // know which the uid does not already say.
+        if (uid != null) {
+            observation.setId(versionedObjectUid(uid));
+            observation.getMeta().setVersionId(versionNumber(uid));
         }
         return observation;
     }
 
-    private Optional<OffsetDateTime> measuredAt(Observation observation) {
+    /**
+     * One stored reading, addressed the way FHIR addresses a resource.
+     *
+     * <p>No index stands behind this. The id <em>is</em> the openEHR versioned object uid, so the
+     * lookup is a composition read rather than a translation — which is only possible because this
+     * service generates the outgoing FHIR and can therefore choose the id.
+     *
+     * <p>openEHR addresses a composition as (EHR, uid) while FHIR addresses a resource by id alone,
+     * so the record has to be named from outside or found. Naming the patient is one read; leaving
+     * it out costs a scan of the roster, which is honest at two patients and would not be at two
+     * million.
+     */
+    public Optional<Observation> read(String observationId, String patientId) {
+        var found = readFrom(observationId, patientId);
+        if (found.isPresent()) {
+            return found;
+        }
+        for (var other : directory.roster()) {
+            if (other.id().equals(patientId)) {
+                continue;
+            }
+            var elsewhere = readFrom(observationId, other.id());
+            if (elsewhere.isPresent()) {
+                return elsewhere;
+            }
+        }
+        return Optional.empty();
+    }
+
+    private Optional<Observation> readFrom(String observationId, String patientId) {
+        JsonNode composition;
+        try {
+            composition = ehrbase.getComposition(ehrResolver.ehrIdFor(patientId), observationId);
+        } catch (Exception e) {
+            log.debug("No composition {} in {}'s record: {}", observationId, patientId, e.getMessage());
+            return Optional.empty();
+        }
+        if (composition == null || composition.isNull()) {
+            return Optional.empty();
+        }
+        return mapToObservations(composition, patientId).stream().findFirst();
+    }
+
+    /** When the reading was taken, which decides the day it belongs to. */
+    public Optional<OffsetDateTime> measuredAt(Observation observation) {
         var effective = observation.getEffectiveDateTimeType();
         if (effective == null || effective.getValue() == null) {
             return Optional.empty();
@@ -139,11 +212,19 @@ public class HeartRateService {
         return Optional.of(effective.getValue().toInstant().atOffset(ZoneOffset.UTC));
     }
 
-    /** The most recently committed composition covering the day of {@code measuredAt}, if any. */
-    private Optional<String> latestVersionOn(OffsetDateTime measuredAt) {
+    /**
+     * The most recently committed composition covering the day of {@code measuredAt}, if any.
+     *
+     * <p>This is what decides between a POST and a PUT: a day that already holds a composition is
+     * corrected by adding a version to it. Public so the pipeline inspector can ask the same question
+     * and show which of the two the reading would get.
+     *
+     * @return the full version uid of the composition a new reading would replace
+     */
+    public Optional<String> latestVersionOn(OffsetDateTime measuredAt, String ehrId) {
         var day = measuredAt.atZoneSameInstant(ZoneOffset.UTC).toLocalDate();
         var parameters = Map.of(
-                "ehrId", (Object) properties.ehrId(),
+                "ehrId", (Object) ehrId,
                 "from", startOfDay(day),
                 "to", startOfDay(day.plusDays(1)));
 
@@ -164,9 +245,15 @@ public class HeartRateService {
     }
 
     /** {@code <uuid>::<node>::<version>} addresses a version; the uuid alone addresses the object. */
-    private static String versionedObjectUid(String versionUid) {
+    public static String versionedObjectUid(String versionUid) {
         int marker = versionUid.indexOf("::");
         return marker < 0 ? versionUid : versionUid.substring(0, marker);
+    }
+
+    /** The trailing {@code ::n} of a version uid, which is what FHIR calls meta.versionId. */
+    private static String versionNumber(String versionUid) {
+        int marker = versionUid.lastIndexOf("::");
+        return marker < 0 ? null : versionUid.substring(marker + 2);
     }
 
     /** Commit times are ISO-8601 but not uniformly precise, so they are parsed rather than compared as text. */
@@ -182,7 +269,7 @@ public class HeartRateService {
     public record ImportResult(int imported, List<HeartRateExtractor.Rejection> rejections) {}
 
     /** Imports a FHIR Bundle, keeping the entries that are usable resting heart rates. */
-    public ImportResult importJson(String json) {
+    public ImportResult importJson(String json, String patientId) {
         Bundle bundle;
         try {
             bundle = pulseObservations.parse(json, Bundle.class);
@@ -190,14 +277,15 @@ public class HeartRateService {
             throw new IllegalArgumentException("That is not a FHIR Bundle.", e);
         }
         var extraction = extractor.fromBundle(bundle);
-        return store(extraction.readings(), new ArrayList<>(extraction.rejections()));
+        return store(extraction.readings(), new ArrayList<>(extraction.rejections()), patientId);
     }
 
-    private ImportResult store(List<Reading> readings, List<HeartRateExtractor.Rejection> failures) {
+    private ImportResult store(
+            List<Reading> readings, List<HeartRateExtractor.Rejection> failures, String patientId) {
         int imported = 0;
         for (var reading : readings) {
             try {
-                record(pulseObservations.observation(reading));
+                record(pulseObservations.observation(reading, patientId), patientId);
                 imported++;
             } catch (Exception e) {
                 log.warn("Could not import a reading: {}", e.getMessage());
@@ -209,11 +297,11 @@ public class HeartRateService {
     }
 
     /** The daily resting heart rates of the last {@code days} days. */
-    public HeartRateSeries series(int days) {
+    public HeartRateSeries series(int days, String patientId) {
         var to = LocalDate.now(ZoneOffset.UTC);
         var from = to.minusDays(days - 1L);
 
-        var rows = ehrbase.query(READINGS_AQL, queryParameters(from));
+        var rows = ehrbase.query(READINGS_AQL, queryParameters(from, ehrResolver.ehrIdFor(patientId)));
         return new HeartRateSeries(from, to, newestPerDay(rows));
     }
 
@@ -253,25 +341,35 @@ public class HeartRateService {
      * Exports the stored readings as a FHIR searchset Bundle. Each composition goes back through
      * openFHIR, so the outgoing FHIR is produced by the same mapping definition as the incoming FHIR.
      */
-    public Bundle export(int days) {
-        var from = LocalDate.now(ZoneOffset.UTC).minusDays(days - 1L);
-        var rows = ehrbase.query(COMPOSITIONS_AQL, queryParameters(from));
-
+    public Bundle export(int days, String patientId) {
         var observations = new ArrayList<Observation>();
-        for (var row : rows) {
+        for (var row : compositions(days, ehrResolver.ehrIdFor(patientId))) {
             if (row.isEmpty() || row.get(0).isNull()) {
                 continue;
             }
-            observations.addAll(mapToObservations(row.get(0)));
+            observations.addAll(mapToObservations(row.get(0), patientId));
         }
+        return searchset(observations);
+    }
 
+    /**
+     * The compositions of the last {@code days} days, as {@link #COMPOSITIONS_AQL} selects them —
+     * the composition in the first column. This is where a GET begins.
+     */
+    public List<List<JsonNode>> compositions(int days, String ehrId) {
+        var from = LocalDate.now(ZoneOffset.UTC).minusDays(days - 1L);
+        return ehrbase.query(COMPOSITIONS_AQL, queryParameters(from, ehrId));
+    }
+
+    /** The shape {@code GET /fhir/Observation} answers with. */
+    public Bundle searchset(List<Observation> observations) {
         var bundle = pulseObservations.bundle(observations);
         bundle.setType(Bundle.BundleType.SEARCHSET);
         bundle.setTotal(observations.size());
         return bundle;
     }
 
-    private List<Observation> mapToObservations(JsonNode composition) {
+    private List<Observation> mapToObservations(JsonNode composition, String patientId) {
         JsonNode mapped;
         try {
             mapped = openFhir.toFhir(objectMapper.writeValueAsString(composition), properties.templateId());
@@ -279,33 +377,55 @@ public class HeartRateService {
             log.warn("openFHIR could not map a stored composition back to FHIR: {}", e.getMessage());
             return List.of();
         }
+        return observationsOf(mapped, composition, patientId);
+    }
+
+    /**
+     * What the backend does to openFHIR's answer before serving it — the step between the mapping
+     * engine and the FHIR API.
+     *
+     * <p>openFHIR answers with a Bundle whose entries are the mapped Observations, carrying ids of
+     * its own making and no subject. Both are put right here: the id becomes the composition's uid,
+     * the version its version, and the subject the patient the record belongs to. Public so the
+     * pipeline inspector can show this as the stage it is rather than pretending openFHIR did it.
+     *
+     * @param mapped openFHIR's answer to {@code /openfhir/tofhir}
+     * @param composition the composition it was mapped from, for its uid
+     */
+    public List<Observation> observationsOf(JsonNode mapped, JsonNode composition, String patientId) {
         if (mapped == null) {
             return List.of();
         }
-
-        // openFHIR answers with a Bundle whose entries are the mapped Observations.
         var observations = new ArrayList<Observation>();
         for (var entry : mapped.path("entry")) {
             var resource = entry.path("resource");
             if ("Observation".equals(resource.path("resourceType").asText())) {
                 var observation = pulseObservations.parseObservation(resource.toString());
-                // openFHIR hands back contained-style ids ("#uuid"); strip the marker so the
-                // Observation is addressable as a standalone resource again.
-                var id = observation.getIdElement().getIdPart();
-                if (id != null && id.startsWith("#")) {
-                    observation.setId(id.substring(1));
+                // openFHIR hands back an id of its own making; the composition's uid is the better
+                // one, because it is what the record is actually addressed by. meta.versionId comes
+                // from the same uid, which is how openEHR's versioning reaches FHIR at all: correct
+                // a reading and the id stays while the version moves.
+                var uid = composition.path("uid").path("value").asText(null);
+                if (uid != null) {
+                    observation.setId(versionedObjectUid(uid));
+                    observation.getMeta().setVersionId(versionNumber(uid));
+                } else {
+                    var id = observation.getIdElement().getIdPart();
+                    if (id != null && id.startsWith("#")) {
+                        observation.setId(id.substring(1));
+                    }
                 }
                 observation.setSubject(
-                        new org.hl7.fhir.r4.model.Reference("Patient/" + properties.patientId()));
+                        new org.hl7.fhir.r4.model.Reference("Patient/" + patientId));
                 observations.add(observation);
             }
         }
         return observations;
     }
 
-    private Map<String, Object> queryParameters(LocalDate from) {
+    private Map<String, Object> queryParameters(LocalDate from, String ehrId) {
         return Map.of(
-                "ehrId", properties.ehrId(),
+                "ehrId", ehrId,
                 "from", startOfDay(from));
     }
 
@@ -317,7 +437,7 @@ public class HeartRateService {
      * That is valid ISO-8601 and still silently matches nothing. {@code Instant.toString()} always
      * writes the seconds.
      */
-    static String startOfDay(LocalDate day) {
+    public static String startOfDay(LocalDate day) {
         return day.atStartOfDay().toInstant(ZoneOffset.UTC).toString();
     }
 }

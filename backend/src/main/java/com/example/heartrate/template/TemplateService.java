@@ -2,13 +2,16 @@ package com.example.heartrate.template;
 
 import com.example.heartrate.config.HeartrateProperties;
 import com.example.heartrate.openehr.EhrbaseClient;
+import com.example.heartrate.patient.EhrResolver;
+import com.example.heartrate.trace.MappingLibrary;
 import com.fasterxml.jackson.databind.JsonNode;
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
 /**
@@ -35,10 +38,18 @@ public class TemplateService {
 
     private final EhrbaseClient ehrbase;
     private final HeartrateProperties properties;
+    private final EhrResolver ehrResolver;
+    private final MappingLibrary mappings;
 
-    public TemplateService(EhrbaseClient ehrbase, HeartrateProperties properties) {
+    public TemplateService(
+            EhrbaseClient ehrbase,
+            HeartrateProperties properties,
+            EhrResolver ehrResolver,
+            MappingLibrary mappings) {
         this.ehrbase = ehrbase;
         this.properties = properties;
+        this.ehrResolver = ehrResolver;
+        this.mappings = mappings;
     }
 
     /**
@@ -51,24 +62,25 @@ public class TemplateService {
     public record TemplateView(
             String templateId, TemplateNode root, int nodes, int filled, boolean hasData) {}
 
-    public TemplateView describe() {
+    public TemplateView describe(String patientId) {
         TemplateNode root;
-        try (var opt = new ClassPathResource("heartrate_monitor.opt").getInputStream()) {
+        try (var opt = new ByteArrayInputStream(
+                mappings.operationalTemplate().getBytes(StandardCharsets.UTF_8))) {
             root = TemplateParser.parse(opt);
         } catch (Exception e) {
             throw new IllegalStateException("Could not read the operational template", e);
         }
 
-        var composition = anyComposition();
+        var composition = anyComposition(ehrResolver.ehrIdFor(patientId));
         var marked = composition == null ? root : mark(root, composition);
         return new TemplateView(
                 properties.templateId(), marked, count(marked, false), count(marked, true), composition != null);
     }
 
     /** One stored composition, or null when the record is still empty. */
-    private JsonNode anyComposition() {
+    private JsonNode anyComposition(String ehrId) {
         try {
-            var rows = ehrbase.query(ONE_COMPOSITION_AQL, Map.of("ehrId", properties.ehrId()));
+            var rows = ehrbase.query(ONE_COMPOSITION_AQL, Map.of("ehrId", ehrId));
             return rows.isEmpty() || rows.get(0).isEmpty() || rows.get(0).get(0).isNull()
                     ? null
                     : rows.get(0).get(0);

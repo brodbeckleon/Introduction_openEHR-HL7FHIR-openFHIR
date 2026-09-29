@@ -1,6 +1,7 @@
 package com.example.heartrate.web;
 
 import com.example.heartrate.config.Messages;
+import com.example.heartrate.patient.PatientDirectory;
 import com.example.heartrate.trace.Trace;
 import com.example.heartrate.trace.TraceService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -30,22 +31,29 @@ public class TraceController {
     private final TraceService service;
     private final ObjectMapper objectMapper;
     private final Messages messages;
+    private final PatientDirectory patients;
 
-    public TraceController(TraceService service, ObjectMapper objectMapper, Messages messages) {
+    public TraceController(
+            TraceService service,
+            ObjectMapper objectMapper,
+            Messages messages,
+            PatientDirectory patients) {
         this.service = service;
         this.objectMapper = objectMapper;
         this.messages = messages;
+        this.patients = patients;
     }
 
     /**
      * Runs one reading through the pipeline.
      *
-     * @param store when true the composition is really written to EHRbase and read back with AQL;
-     *     by default the trace is a dry run and the record is left alone
+     * <p>Read-only, always: the trace maps the reading and reads what the two stores hold, and
+     * writes to neither. There is no flag for the other thing, because the other thing is what
+     * {@code POST /fhir/Bundle} is for.
      */
     @PostMapping(consumes = {MediaType.APPLICATION_JSON_VALUE, "application/fhir+json"})
-    public Trace trace(@RequestBody String json, @RequestParam(defaultValue = "false") boolean store) {
-        return service.trace(json, store);
+    public Trace trace(@RequestBody String json, @RequestParam(required = false) String patient) {
+        return service.trace(json, patients.resolve(patient));
     }
 
     /**
